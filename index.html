@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#4f46e5">
+  <title>Sistem Asesmen Autentik PJOK SMA - Kurikulum Merdeka</title>
+
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- SheetJS with Full Cell Styling (Borders, Colors, Fonts) CDN for Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <!-- Chart.js CDN for Visual Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <link rel="stylesheet" href="css/style.css?v=202608302212">
+</head>
+
+<body>
+
+  <!-- APP CONTAINER -->
+  <div class="app-container">
+
+    <!-- NAVIGATION BAR -->
+    <header class="app-header no-print">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div>
+          <h1>Asesmen Autentik PJOK <span class="badge-fase">Fase E/F SMA</span></h1>
+          <p class="subtitle">Platform Evaluasi Unjuk Kerja, TPACK & Pembelajaran Berdiferensiasi</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn btn-outline" id="btnToggleTheme" title="Ganti Tema">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+        <button class="btn btn-secondary" id="btnManageRubric">
+          <i class="fa-solid fa-sliders"></i> Kelola Rubrik
+        </button>
+        <button class="btn btn-success" id="btnExportExcel">
+          <i class="fa-solid fa-file-excel"></i> Unduh Excel (.xlsx)
+        </button>
+        <button class="btn btn-primary" id="btnPrintPDF">
+          <i class="fa-solid fa-print"></i> Cetak / PDF
+        </button>
+      </div>
+    </header>
+
+    <!-- DYNAMIC KOP DOKUMEN (PRINT & DISPLAY) WITH INTEGRATED TOP CLASS SELECTOR -->
+    <section class="card kop-card">
+      <div class="kop-header-controls no-print">
+        <h3><i class="fa-solid fa-school"></i> Identitas & Kop Asesmen (Dinamis)</h3>
+        <span class="text-muted"><i class="fa-solid fa-pen-to-square"></i> Klik bidang teks / isi data di bawah untuk
+          mengubah identitas dokumen</span>
+      </div>
+
+      <div class="kop-document">
+        <div class="kop-title">
+          <h2 id="dispJudul" contenteditable="true" spellcheck="false">RUBRIK ASESMEN AUTENTIK PJOK (OBSERVASI UNJUK
+            KERJA GURU)</h2>
+          <h3 id="dispSekolah" contenteditable="true" spellcheck="false">SMA NEGERI 2 CIAMIS</h3>
+          <p id="dispSubHeader" contenteditable="true" spellcheck="false">TAHUN PELAJARAN 2025-2026</p>
+        </div>
+
+        <div class="kop-meta-grid">
+          <!-- TOP INTEGRATED CLASS FILTER DROPDOWN -->
+          <div class="meta-item">
+            <label><i class="fa-solid fa-layer-group"></i> Kelas / Fase (Filter Kelas):</label>
+            <select id="selectKopKelas" class="select-input select-kop-kelas no-print">
+              <!-- Dynamic class options inserted by JS -->
+            </select>
+            <span id="dispKelasPrint" class="print-only-text">Fase E (Kelas X E-1)</span>
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-calendar-days"></i> Tahun Pelajaran:</label>
+            <input type="text" id="inputTahunPelajaran" value="2025-2026" class="editable-input"
+              placeholder="contoh: 2025-2026">
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-location-dot"></i> Kota / Kabupaten & Tanggal:</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="inputKota" value="Ciamis" class="editable-input" placeholder="Kota"
+                style="width: 40%;">
+              <input type="date" id="inputTanggal" class="editable-input" style="width: 60%;">
+            </div>
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-volleyball"></i> Topik / Cabang Olahraga:</label>
+            <select id="selectPresetOlahraga" class="select-input no-print">
+              <!-- Dynamic sport options inserted by JS -->
+            </select>
+            <span id="dispOlahragaPrint" class="print-only-text">Bola Basket</span>
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-user-tie"></i> Guru PJOK:</label>
+            <input type="text" id="inputGuru" value="Afriadi Nugraha Sulaeman, S.Pd." class="editable-input"
+              placeholder="Nama Guru">
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-id-card"></i> NIP Guru PJOK:</label>
+            <input type="text" id="inputNipGuru" value="19780512 200501 1 003" class="editable-input"
+              placeholder="NIP Guru">
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-user-shield"></i> Jabatan Kepala Sekolah:</label>
+            <input type="text" id="inputJabatanKepsek" value="Plt. Kepala SMAN 2 Ciamis" class="editable-input"
+              placeholder="contoh: Plt. Kepala SMAN 2 Ciamis">
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-user-gear"></i> Nama Kepala Sekolah:</label>
+            <input type="text" id="inputKepsek" value="Dadan Ramdan, S.Ag., M.Pd." class="editable-input"
+              placeholder="Nama Kepala Sekolah">
+          </div>
+
+          <div class="meta-item">
+            <label><i class="fa-solid fa-id-card-clip"></i> NIP Kepala Sekolah:</label>
+            <input type="text" id="inputNipKepsek" value="19710325 199702 1 002" class="editable-input"
+              placeholder="NIP Kepala Sekolah">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD STATISTIK & ANALISTIK -->
+    <section class="dashboard-grid no-print">
+      <div class="card stat-card">
+        <div class="stat-icon icon-total"><i class="fa-solid fa-users"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statTotalSiswa">0</span>
+          <span class="stat-label">Total Murid</span>
+        </div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-icon icon-mahir"><i class="fa-solid fa-award"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statMahir">0</span>
+          <span class="stat-label">Mahir</span>
+        </div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-icon icon-cakap"><i class="fa-solid fa-thumbs-up"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statCakap">0</span>
+          <span class="stat-label">Cakap</span>
+        </div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-icon icon-layak"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statLayak">0</span>
+          <span class="stat-label">Layak</span>
+        </div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-icon icon-berkembang"><i class="fa-solid fa-seedling"></i></div>
+        <div class="stat-info">
+          <span class="stat-value" id="statBerkembang">0</span>
+          <span class="stat-label">Berkembang</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN SCORING & OBSERVATION TABLE -->
+    <section class="card table-card">
+      <div class="table-toolbar no-print">
+        <div class="toolbar-left">
+          <h3><i class="fa-solid fa-clipboard-check"></i> Lembar Observasi Unjuk Kerja Siswa</h3>
+
+          <div class="toolbar-filter-row">
+            <!-- FILTER PILLS BY CATEGORY -->
+            <div class="filter-pills">
+              <button class="pill active" data-filter="all">Semua (<span id="cntAll">0</span>)</button>
+              <button class="pill pill-mahir" data-filter="Mahir">Mahir (<span id="cntMahir">0</span>)</button>
+              <button class="pill pill-cakap" data-filter="Cakap">Cakap (<span id="cntCakap">0</span>)</button>
+              <button class="pill pill-layak" data-filter="Layak">Layak (<span id="cntLayak">0</span>)</button>
+              <button class="pill pill-berkembang" data-filter="Berkembang">Berkembang (<span
+                  id="cntBerkembang">0</span>)</button>
+              <button class="pill pill-unscored" data-filter="Unscored">Belum Dinilai (<span
+                  id="cntUnscored">0</span>)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <button class="btn btn-outline-sm" id="btnImportData">
+            <i class="fa-solid fa-file-import"></i> Impor CSV/Excel
+          </button>
+          <button class="btn btn-primary-sm" id="btnAddStudent">
+            <i class="fa-solid fa-user-plus"></i> Tambah Siswa
+          </button>
+          <button class="btn btn-warning-sm" id="btnClearData" title="Reset/Kosongkan Nilai Kelas Ini">
+            <i class="fa-solid fa-rotate-left"></i> Reset Nilai Kelas
+          </button>
+        </div>
+      </div>
+
+      <!-- KELOMPOK / TIM FILTER & AUTOMATIC GROUPING BAR -->
+      <div class="group-filter-bar no-print">
+        <div class="group-select-wrapper">
+          <label for="selectFilterKelompok"><i class="fa-solid fa-people-group" style="color: var(--primary);"></i>
+            Filter Tampilan Kelompok / Tim:</label>
+          <select id="selectFilterKelompok" class="select-input select-filter-kelompok">
+            <option value="all">Semua Kelompok / Tim (Tampilkan Seluruh Murid)</option>
+            <!-- Dynamic Kelompok Options populated by JS -->
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-secondary-sm" id="btnOpenGroupMappingModal"
+            title="Petakan murid secara manual berdasarkan Asesmen Awal atau Tingkat Kemampuan">
+            <i class="fa-solid fa-sitemap"></i> Pemetaan Manual / Asesmen Awal
+          </button>
+          <button class="btn btn-outline-sm" id="btnAutoDivideGroups"
+            title="Bagi murid dalam kelas ke dalam kelompok secara otomatis (contoh: 5-6 orang per tim)">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Bagi Kelompok Otomatis
+          </button>
+          <button class="btn btn-primary-sm" id="btnToggleCourtVisualizer"
+            title="Tampilkan peta lapangan dengan posisi murid sesuai kelompok yang dipilih">
+            <i class="fa-solid fa-map-location-dot"></i> Visualisasi Lapangan
+          </button>
+        </div>
+      </div>
+
+      <!-- COURT VISUALIZER PANEL (Panel Terbuka) -->
+      <div class="court-visualizer-panel no-print" id="courtVisualizerPanel" style="display: none;">
+        <div class="court-header">
+          <div class="court-title" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div><i class="fa-solid fa-map"></i> <strong>Peta Lapangan Olahraga (LIVE)</strong></div>
+            <span class="text-muted" style="font-size: 0.8rem;" id="courtClickHint">Klik pin murid untuk menilai
+              langsung</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-outline-sm" id="btnToggleManualSub" onclick="window.toggleManualSubMode()"
+              style="background-color: #f8fafc;">
+              <i class="fa-solid fa-arrows-rotate"></i> Mode Substitusi: OFF
+            </button>
+            <button class="btn btn-outline-sm" id="btnCloseCourtVisualizer">
+              <i class="fa-solid fa-xmark"></i> Tutup Lapangan
+            </button>
+          </div>
+        </div>
+
+        <!-- MATCH SCOREBOARD PANEL -->
+        <div class="match-scoreboard-card" id="matchScoreboardPanel">
+          <div class="scoreboard-header">
+            <div class="match-tag"><i class="fa-solid fa-trophy"></i> Papan Skor &amp; Eviden Pertandingan</div>
+            <div class="match-status-select-wrap">
+              <label for="selectMatchStatus"><i class="fa-solid fa-flag-checkered"></i> Status Laga:</label>
+              <select id="selectMatchStatus" class="select-input-sm"
+                onchange="window.handleMatchStatusChange(this.value)">
+                <option value="ongoing">Sedang Berlangsung</option>
+                <option value="finished">Selesai (Final)</option>
+                <option value="cancelled">Belum Dimulai</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="scoreboard-body">
+            <!-- Tim B (Atas) -->
+            <div class="team-score-block team-b-block">
+              <div class="team-name" id="sbTeamBName"><i class="fa-solid fa-users" style="color: #3b82f6;"></i> Tim B
+              </div>
+              <div class="score-display-wrap">
+                <button class="btn-score-ctrl btn-sub" onclick="window.changeMatchScore('B', -1)">-1</button>
+                <input type="number" id="sbScoreB" class="input-score-val" value="0" min="0"
+                  onchange="window.setMatchScoreManual('B', this.value)">
+                <button class="btn-score-ctrl btn-add" onclick="window.changeMatchScore('B', 1)">+1</button>
+                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('B', 2)">+2</button>
+                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('B', 3)">+3</button>
+              </div>
+            </div>
+
+            <!-- VS & Sets/Babak Divider -->
+            <div class="score-vs-divider">
+              <div class="vs-text">VS</div>
+              <div class="set-input-wrap">
+                <label for="inputMatchPeriod" style="font-size:0.68rem; color:#64748b; font-weight:700;">Set / Skor
+                  Babak:</label>
+                <input type="text" id="inputMatchPeriod" class="input-period-val" placeholder="Misal: 25-21, 23-25"
+                  onchange="window.saveMatchPeriod(this.value)">
+              </div>
+            </div>
+
+            <!-- Tim A (Bawah) -->
+            <div class="team-score-block team-a-block">
+              <div class="team-name" id="sbTeamAName"><i class="fa-solid fa-users" style="color: #10b981;"></i> Tim A
+              </div>
+              <div class="score-display-wrap">
+                <button class="btn-score-ctrl btn-sub" onclick="window.changeMatchScore('A', -1)">-1</button>
+                <input type="number" id="sbScoreA" class="input-score-val" value="0" min="0"
+                  onchange="window.setMatchScoreManual('A', this.value)">
+                <button class="btn-score-ctrl btn-add" onclick="window.changeMatchScore('A', 1)">+1</button>
+                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('A', 2)">+2</button>
+                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('A', 3)">+3</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Catatan Eviden Pertandingan -->
+          <div class="scoreboard-footer">
+            <div class="eviden-note-wrap">
+              <label for="inputMatchEvidenceNotes"><i class="fa-solid fa-clipboard-check"></i> Catatan Eviden
+                Pertandingan (Sportivitas, Taktik, Jalannya Laga):</label>
+              <input type="text" id="inputMatchEvidenceNotes" class="input-eviden-notes"
+                placeholder="Ketik catatan jalannya pertandingan sebagai bukti eviden unjuk kerja..."
+                onchange="window.saveMatchEvidenceNotes(this.value)">
+            </div>
+          </div>
+        </div>
+
+        <div class="court-wrapper" id="courtWrapper">
+          <!-- Court container injected here by JS -->
+        </div>
+
+        <div class="bench-area" id="benchArea" style="display: none; margin-top: 15px;">
+          <h5 style="font-size: 0.9rem;"><i class="fa-solid fa-chair"></i> Area Substitusi (Pemain Cadangan & Kumpulan
+            Murid)</h5>
+          <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 8px;">Klik untuk memilih, lalu klik
+            pemain/slot lain untuk menukar posisi.</div>
+          <div id="benchPlayersContainer">
+            <!-- Bench pins injected here by JS -->
+          </div>
+        </div>
+      </div>
+  </div>
+  </div>
+
+  <!-- Old Modal Select Official Removed -->
+  <div class="group-batch-panel no-print" id="groupBatchPanel" style="display: none;">
+    <div class="batch-title">
+      <i class="fa-solid fa-bolt" style="color: #f59e0b; font-size: 1.05rem;"></i>
+      <strong>Penilaian Cepat Serentak Tim (<span id="dispBatchGroupName">Kelompok 1</span>):</strong>
+      <span class="text-muted" style="font-size: 0.8rem;">Beri nilai awal seluruh anggota tim sekaligus dengan
+        1-klik, lalu sesuaikan nilai individual di tabel jika ada murid yang tampil lebih menonjol.</span>
+    </div>
+    <div class="batch-criteria-grid" id="batchCriteriaGrid">
+      <!-- Dynamic Batch Criteria Buttons inserted by JS -->
+    </div>
+  </div>
+
+  <!-- TABLE CONTAINER -->
+  <div class="table-responsive">
+    <table class="assessment-table" id="assessmentTable">
+      <thead>
+        <tr id="tableHeaderRow">
+          <th style="width: 38px; text-align: center;">No.</th>
+          <th style="min-width: 175px; text-align: center;" class="sticky-col">Nama Murid</th>
+          <th style="width: 75px; text-align: center;">Kelas</th>
+          <!-- Dynamic Criteria Columns inserted by JS -->
+          <th style="width: 55px; text-align: center;">Skor</th>
+          <th style="width: 125px; min-width: 125px; text-align: center;">Keterangan Interval</th>
+          <th class="no-print" style="width: 55px; text-align: center;">Reset</th>
+        </tr>
+      </thead>
+      <tbody id="tableBodySiswa">
+        <!-- Dynamic Student Rows inserted by JS -->
+      </tbody>
+    </table>
+  </div>
+  </section>
+
+  <!-- INTERVAL SKOR & DESKRIPSI RUBRIK (INFORMASI KURIKULUM) -->
+  <div class="grid-2col">
+    <!-- INTERVAL SKOR CARD -->
+    <section class="card info-card">
+      <h3><i class="fa-solid fa-chart-line"></i> Keterangan Interval Skor Dinamis</h3>
+      <div class="interval-list" id="intervalContainer">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="interval-note">
+        <small><i class="fa-solid fa-info-circle"></i> Kategori interval dikalkulasi secara proporsional berdasarkan
+          jumlah kriteria aktif (Skor Maksimal = <span id="dispSkorMax">20</span>).</small>
+      </div>
+    </section>
+
+    <!-- PANDUAN INDIKATOR LEVEL CARD -->
+    <section class="card info-card">
+      <h3><i class="fa-solid fa-book-bookmark"></i> Indikator Capaian Keterampilan</h3>
+      <div class="indicator-desc-list">
+        <div class="desc-item item-mahir">
+          <strong>Mahir (Skor 4):</strong> Menunjukkan penguasaan teknik yang sangat baik, konsisten, efisien, dan
+          mampu menerapkan variasi/strategi secara adaptif dalam permainan.
+        </div>
+        <div class="desc-item item-cakap">
+          <strong>Cakap (Skor 3):</strong> Menunjukkan penguasaan teknik yang baik dan lancar, namun masih terdapat
+          sedikit kekurangan pada konsistensi atau variasi gerakan.
+        </div>
+        <div class="desc-item item-layak">
+          <strong>Layak (Skor 2):</strong> Menunjukkan penguasaan teknik yang cukup, namun masih sering melakukan
+          kesalahan dasar dan membutuhkan pengarahan.
+        </div>
+        <div class="desc-item item-berkembang">
+          <strong>Berkembang (Skor 1):</strong> Belum menunjukkan penguasaan teknik dasar yang baik dan memerlukan
+          bimbingan intensif dari guru/tutor sebaya.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- DIFERENSIASI & CATATAN UNPAN BALIK PEDAGOGIS -->
+  <section class="card diferensiasi-card">
+    <h3><i class="fa-solid fa-lightbulb"></i> Pembelajaran Berdiferensiasi, Umpan Balik & Catatan Guru</h3>
+    <div class="diferensiasi-content">
+      <div class="dif-box">
+        <h4><i class="fa-solid fa-wand-magic-sparkles"></i> Kreativitas & Keberagaman yang Dikembangkan</h4>
+        <ul>
+          <li>Kemampuan beradaptasi dalam situasi permainan realistik / pertandingan simulasi.</li>
+          <li>Pengembangan strategi kerja sama tim dan komunikasi efektif saat unjuk kerja.</li>
+          <li>Penerapan teknik yang inovatif dalam kombinasi gerak spesifik PJOK.</li>
+          <li>Menjunjung tinggi nilai sportivitas, etika, kejujuran, dan inklusivitas.</li>
+        </ul>
+      </div>
+      <div class="dif-box">
+        <h4><i class="fa-solid fa-comments"></i> Strategi Umpan Balik &amp; Tindak Lanjut</h4>
+        <p>Guru memberikan umpan balik secara langsung (<em>formatif langsung</em>) setelah unjuk kerja. Siswa
+          kategori <strong>Berkembang</strong> dan <strong>Layak</strong> diberikan program pendampingan &amp; latihan
+          terfokus, sedangkan siswa <strong>Mahir</strong> dan <strong>Cakap</strong> diberdayakan sebagai <em>Tutor
+            Sebaya</em> dan diberikan tantangan pengayaan strategi permainan.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOKUMEN BERITA ACARA & EVIDEN PERTANDINGAN ANTAR KELOMPOK (PRINT & DISPLAY) -->
+  <section class="card match-evidence-section" id="matchEvidencePrintBox" style="display: none; margin-bottom: 20px;">
+    <div class="evidence-box-header">
+      <h3><i class="fa-solid fa-file-signature"></i> Berita Acara &amp; Eviden Hasil Pertandingan Antar Kelompok</h3>
+      <span class="evidence-badge" id="printEvidenceSportBadge">Pertandingan</span>
+    </div>
+    <div class="evidence-box-content" id="printEvidenceContent">
+      <!-- Injected dynamically by JS -->
+    </div>
+  </section>
+
+  <!-- LEMBAR TANDA TANGAN LEGITIMASI DINAMIS (DISPLAY & PRINT) -->
+  <section class="card signature-section">
+    <div class="sig-box">
+      <p>Mengetahui,</p>
+      <p id="dispJabatanKepsekSig">Plt. Kepala SMAN 2 Ciamis</p>
+      <div class="sig-space"></div>
+      <p class="sig-name" id="dispKepsekSig">Dadan Ramdan, S.Ag., M.Pd.</p>
+      <p class="sig-nip" id="dispNipKepsekSig">NIP. 19710325 199702 1 002</p>
+    </div>
+    <div class="sig-box">
+      <p><span id="dispKotaSig">Ciamis</span>, <span id="dispTanggalSig">26 Agustus 2026</span></p>
+      <p>Guru PJOK</p>
+      <div class="sig-space"></div>
+      <p class="sig-name" id="dispGuruSig">Afriadi Nugraha Sulaeman, S.Pd.</p>
+      <p class="sig-nip" id="dispNipGuruSig">NIP. 19780512 200501 1 003</p>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- FLOATING ACTION BAR FOR MOBILE -->
+  <div class="mobile-fab-bar no-print">
+    <button class="fab-btn btn-fab-excel" id="mobileBtnExcel" title="Unduh Excel">
+      <i class="fa-solid fa-file-excel"></i>
+      <span>Excel</span>
+    </button>
+    <button class="fab-btn btn-fab-rubric" id="mobileBtnRubric" title="Kelola Rubrik">
+      <i class="fa-solid fa-sliders"></i>
+      <span>Rubrik</span>
+    </button>
+    <button class="fab-btn btn-fab-add" id="mobileBtnAdd" title="Tambah Siswa">
+      <i class="fa-solid fa-plus"></i>
+      <span>Siswa</span>
+    </button>
+    <button class="fab-btn btn-fab-print" id="mobileBtnPrint" title="Cetak PDF">
+      <i class="fa-solid fa-print"></i>
+      <span>Cetak</span>
+    </button>
+  </div>
+
+  <!-- MODAL: KELOLA KRITERIA DINAMIS (KATEGORI: PEMAIN | PERANGKAT PERTANDINGAN) -->
+  <div class="modal-overlay" id="rubricModal">
+    <div class="modal-card modal-rubric-card">
+      <div class="modal-header rubric-modal-header">
+        <h2>Kriteria Dinamis</h2>
+        <button class="modal-close" id="btnCloseRubricModal" aria-label="Tutup"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- EDITABLE TOPIC NAME INPUT IN MODAL -->
+      <div class="modal-topic-edit-row">
+        <label><i class="fa-solid fa-pen-to-square" style="color: var(--primary);"></i> Nama Topik / Cabang
+          Olahraga:</label>
+        <input type="text" id="inputModalTopicName" class="crit-title-input" value="Bola Basket"
+          placeholder="contoh: Pencak Silat, Renang, Panahan...">
+      </div>
+
+      <!-- CATEGORY TABS (Pemain / Perangkat Pertandingan) -->
+      <div class="rubric-category-tabs" id="rubricCategoryTabs">
+        <button class="tab-pill active" data-cat="Pemain">Pemain</button>
+        <button class="tab-pill" data-cat="Perangkat Pertandingan">Perangkat Pertandingan</button>
+      </div>
+
+      <div class="modal-body rubric-modal-body">
+        <div class="rubric-cards-scroll" id="rubricCriteriaList">
+          <!-- Dynamic Criteria Cards Rendered via JS -->
+        </div>
+
+        <button class="btn-add-crit-block" id="btnAddCriteria">
+          <i class="fa-solid fa-plus"></i> Tambah Kriteria Baru
+        </button>
+      </div>
+
+      <div class="modal-footer rubric-modal-footer"
+        style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" id="btnResetRubricDefault" style="font-size: 0.8rem;"
+          title="Reset Kriteria Ke Standar Rubrik Resmi">
+          <i class="fa-solid fa-rotate-left"></i> Reset Ke Standar Rubrik
+        </button>
+        <button class="btn-save-primary" id="btnSaveRubric">Simpan Perubahan Topik</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PEMETAAN KELOMPOK MANUAL & ASESMEN AWAL -->
+  <div class="modal-overlay" id="groupMappingModal">
+    <div class="modal-card" style="max-width: 860px; width: 95%;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-sitemap" style="color: var(--primary);"></i> Pemetaan Kelompok Manual & Asesmen Awal
+        </h3>
+        <button class="modal-close" id="btnCloseGroupModal" aria-label="Tutup"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="max-height: 74vh; overflow-y: auto;">
+        <!-- INPUT CUSTOM GROUP CREATION BAR -->
+        <div
+          style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 260px;">
+            <i class="fa-solid fa-folder-plus" style="color: #4f46e5; font-size: 1.1rem;"></i>
+            <strong style="font-size: 0.88rem; color: #1e293b;">Buat Kelompok / Tim Baru:</strong>
+            <input type="text" id="inputNewGroupName" class="select-input"
+              placeholder="contoh: Tim Garuda, Kelompok 1, Tim A"
+              style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">
+          </div>
+          <button class="btn btn-primary-sm" id="btnAddCustomGroupBtn">
+            <i class="fa-solid fa-plus"></i> + Tambah Nama Kelompok
+          </button>
+        </div>
+
+        <!-- TARGET GROUP SELECTION PILLS BAR (1-TAP SELECTION BOARD) -->
+        <div
+          style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border: 1.5px solid #a5b4fc; border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.06);">
+          <div
+            style="font-size: 0.85rem; font-weight: 800; color: #1e1b4b; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+            <span><i class="fa-solid fa-hand-pointer" style="color: #4f46e5;"></i> Pilih Kelompok Tujuan (Lalu Ketuk
+              Nama Murid Di Bawah):</span>
+            <span id="dispActiveTargetGroupBadge" class="badge-kelompok-tag"
+              style="font-size: 0.8rem; background: #4f46e5; color: #ffffff; border: none; padding: 3px 10px;">🎯
+              Target: Kelompok 1</span>
+          </div>
+
+          <div class="target-group-pills" id="targetGroupPills" style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <!-- Dynamic Group Target Pills inserted by JS -->
+          </div>
+        </div>
+
+        <!-- AUTOMATIC DISTRIBUTION PRESETS & VIEW TOGGLE -->
+        <div
+          style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn btn-secondary-sm" id="btnGroupHeterogeneous"
+              style="background: #ecfdf5; border-color: #a7f3d0; color: #047857;"
+              title="Campur murid secara seimbang (1 Mahir, 2-3 Cakap, 1-2 Layak/Pendampingan di setiap tim agar ada Tutor Sebaya)">
+              <i class="fa-solid fa-people-arrows" style="color: #059669;"></i> Bagi Kelompok HETEROGEN / Seimbang
+            </button>
+            <button class="btn btn-outline-sm" id="btnGroupTierDiagnostic"
+              title="Kelompokkan berdasarkan kualifikasi rentang nilai awal">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Bagi Kelompok Homogen (Diferensiasi)
+            </button>
+          </div>
+
+          <!-- VIEW MODE SWITCHER -->
+          <div style="display: flex; background: #e2e8f0; border-radius: 8px; padding: 2px;">
+            <button class="pill active" id="btnViewModeTap" style="font-size: 0.75rem; padding: 3px 10px;"
+              title="Tampilan Kartu Ketuk 1-Klik"><i class="fa-solid fa-table-cells"></i> Ketuk 1-Klik</button>
+            <button class="pill" id="btnViewModeList" style="font-size: 0.75rem; padding: 3px 10px;"
+              title="Tampilan Tabel List Dropdown"><i class="fa-solid fa-list"></i> Tabel List</button>
+          </div>
+        </div>
+
+        <!-- VIEW MODE 1: 1-TAP INTERACTIVE STUDENT CHIPS GRID -->
+        <div class="student-chips-grid" id="studentChipsGrid">
+          <!-- Dynamic 1-Tap Interactive Student Chips inserted by JS -->
+        </div>
+
+        <!-- VIEW MODE 2: CLASSIC LIST DROPDOWN TABLE (HIDDEN BY DEFAULT) -->
+        <div class="group-mapping-list" id="groupMappingList" style="display: none; flex-direction: column; gap: 8px;">
+          <!-- Dynamic Student Dropdown Rows inserted by JS -->
+        </div>
+      </div>
+      <div class="modal-footer"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-warning-sm" id="btnResetAllGroupsUnassigned" style="font-size: 0.78rem;"
+            title="Kosongkan/Reset seluruh kelompok murid di kelas ini menjadi 'Belum Dikelompokkan'">
+            <i class="fa-solid fa-rotate-left"></i> Reset Ke Belum Dikelompokkan
+          </button>
+          <span style="font-size: 0.8rem; color: #64748b;" id="dispGroupMapSummary">Total Murid: 42</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" id="btnCancelGroupMapping">Batal</button>
+          <button class="btn btn-primary" id="btnSaveGroupMapping">Simpan & Terapkan Pemetaan Kelompok</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IMPOR DATABASE SISWA -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-import"></i> Impor Database Siswa (CSV / Excel)</h3>
+        <button class="modal-close" id="btnCloseImportModal" aria-label="Tutup"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 12px;">
+          <i class="fa-solid fa-lightbulb" style="color: var(--primary);"></i> File CSV/Excel dengan kolom
+          <strong>Nama</strong> dan <strong>Kelas</strong> (contoh: <i>X E-1, X E-2, XI F-1</i>) akan otomatis diimpor
+          dengan kondisi skor nilai kosong (belum terpilih).
+        </p>
+
+        <div class="form-group">
+          <label>Option A: Unggah File Database CSV / Excel (.csv, .xlsx)</label>
+          <input type="file" id="fileImportExcel" accept=".xlsx, .xls, .csv" class="file-input">
+        </div>
+
+        <div class="divider"><span>ATAU</span></div>
+
+        <div class="form-group">
+          <label>Target Kelas Saat Tempel Manual:</label>
+          <input type="text" id="inputTargetImportKelas" value="X E-1" class="editable-input"
+            placeholder="contoh: X E-1" style="margin-bottom: 8px;">
+          <label>Option B: Paste Daftar Nama Siswa (1 Nama Per Baris)</label>
+          <textarea id="textPasteNama" rows="5"
+            placeholder="Ahmad Rizky&#10;Budi Santoso&#10;Citra Lestari..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelImport">Batal</button>
+        <button class="btn btn-primary" id="btnProcessImport">Proses Impor Database</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SINGLE STUDENT SCORE & INCIDENT MODAL -->
+  <div class="modal-overlay" id="singleStudentScoreModal"
+    style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); align-items: center; justify-content: center; z-index: 99999; backdrop-filter: blur(4px);">
+    <div class="modal-card student-score-modal-card"
+      style="max-width: 820px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; padding: 0; border-radius: 14px; overflow: hidden; background: #ffffff; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+      <div id="singleStudentModalHeader" class="student-score-modal-header"
+        style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
+        <!-- Injected by JS: Name, Team, and Substitusi Button -->
+      </div>
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1; background: #f8fafc;">
+        <div id="singleStudentScoreContainer" style="display: flex; flex-direction: column; gap: 14px;">
+          <!-- Criteria rows & Incident box injected here -->
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 14px 20px; background: #ffffff; border-top: 1px solid #e2e8f0;">
+        <button class="btn-modal-close-wide" id="btnCloseSingleStudentModalFooter"
+          onclick="const m = document.getElementById('singleStudentScoreModal'); m.style.display='none'; m.classList.remove('active');">
+          Selesai (Tutup)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PILIH PERANGKAT PERTANDINGAN -->
+  <div class="modal-overlay" id="modalSelectOfficial"
+    style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.65); align-items: center; justify-content: center; z-index: 99999; backdrop-filter: blur(4px);">
+    <div class="modal-card"
+      style="max-width: 680px; width: 95%; max-height: 85vh; display: flex; flex-direction: column; padding: 0; border-radius: 14px; overflow: hidden; background: #ffffff; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+      <div class="modal-header"
+        style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
+        <div>
+          <h3 id="dispSelectOfficialRoleTitle" style="font-size: 1.15rem; font-weight: 800; color: #1e293b; margin: 0;">
+            <i class="fa-solid fa-user-shield" style="color: #0284c7;"></i> Penugasan Perangkat Pertandingan</h3>
+          <small id="dispSelectOfficialRoleSub" style="color: #64748b; font-size: 0.78rem;">Pilih murid dari kelompok
+            netral (tidak sedang bertanding)</small>
+        </div>
+        <button class="modal-close" id="btnCloseSelectOfficial" aria-label="Tutup"
+          onclick="const m = document.getElementById('modalSelectOfficial'); m.classList.remove('active'); setTimeout(() => m.style.display='none', 250);"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1; background: #f8fafc;">
+        <div id="selectOfficialCurrentCard" style="margin-bottom: 12px;"></div>
+        <div style="font-size: 0.82rem; font-weight: 700; color: #475569; margin-bottom: 8px;">Pilih Murid yang
+          Tersedia:</div>
+        <div id="selectOfficialCandidateList"
+          style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;"></div>
+      </div>
+      <div class="modal-footer"
+        style="padding: 12px 20px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between;">
+        <button class="btn btn-secondary"
+          onclick="const m = document.getElementById('modalSelectOfficial'); m.classList.remove('active'); setTimeout(() => m.style.display='none', 250);">Tutup</button>
+        <button class="btn btn-danger-sm" id="btnRemoveOfficialFromRole" style="display: none;"><i
+            class="fa-solid fa-trash-can"></i> Kosongkan Petugas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast-notification" id="toastNotif">
+    <i class="fa-solid fa-circle-check"></i> <span id="toastMsg">Perubahan berhasil disimpan!</span>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/rubric-engine.js"></script>
+  <script src="js/excel-exporter.js"></script>
+  <!-- Cache buster to ensure the newest app.js is always loaded -->
+  <script src="js/app.js?v=202608301902"></script>
+</body>
+
+</html>
