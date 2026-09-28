@@ -590,12 +590,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (selectedKelompok !== 'all') {
+        let isPartOfMatch = false;
+
         if (selectedKelompok.startsWith('match:')) {
           const pair = selectedKelompok.replace('match:', '').split('+');
-          if (!pair.includes(studentKelompok)) {
-            return;
+          if (pair.includes(studentKelompok)) {
+            isPartOfMatch = true;
           }
-        } else if (studentKelompok !== selectedKelompok) {
+        } else if (studentKelompok === selectedKelompok) {
+          isPartOfMatch = true;
+        }
+
+        if (!isPartOfMatch && state.currentLineup && state.currentLineup.hash === `${rubricEngine.currentSport}-${selectedKelas}-${selectedKelompok}`) {
+          const lineup = state.currentLineup;
+          if (
+            (lineup.startersA && lineup.startersA.includes(student.id)) ||
+            (lineup.benchA && lineup.benchA.includes(student.id)) ||
+            (lineup.startersB && lineup.startersB.includes(student.id)) ||
+            (lineup.benchB && lineup.benchB.includes(student.id)) ||
+            (lineup.officials && Object.values(lineup.officials).includes(student.id))
+          ) {
+            isPartOfMatch = true;
+          }
+        }
+
+        if (!isPartOfMatch) {
           return;
         }
       }
@@ -614,13 +633,28 @@ document.addEventListener('DOMContentLoaded', () => {
       tdHtml += `<td style="text-align: center;"><span class="badge-kelas-tag">${escapeHtml(studentKelas)}</span></td>`;
 
       let kelompokBadgeHtml = `<span class="badge-kelompok-tag" data-id="${student.id}" title="Klik untuk ubah kelompok/tim">${escapeHtml(studentKelompok)}</span>`;
+      
+      const lineup = state.currentLineup;
+      const isLineupActive = lineup && lineup.hash === `${rubricEngine.currentSport}-${selectedKelas}-${selectedKelompok}`;
+      let actingTeam = null;
+      let actingOfficial = false;
+      if (isLineupActive) {
+          if ((lineup.startersA && lineup.startersA.includes(student.id)) || (lineup.benchA && lineup.benchA.includes(student.id))) actingTeam = 'A';
+          else if ((lineup.startersB && lineup.startersB.includes(student.id)) || (lineup.benchB && lineup.benchB.includes(student.id))) actingTeam = 'B';
+          else if (lineup.officials && Object.values(lineup.officials).includes(student.id)) actingOfficial = true;
+      }
+
       if (selectedKelompok.startsWith('match:')) {
         const [g1, g2] = selectedKelompok.replace('match:', '').split('+');
-        if (studentKelompok === g1) {
+        if (studentKelompok === g1 || actingTeam === 'A') {
           kelompokBadgeHtml = `<span class="badge-kelompok-tag" style="background:#fef3c7; color:#b45309; border-color:#fde68a; font-weight:800;" data-id="${student.id}" title="Regu A">${escapeHtml(studentKelompok)} (A)</span>`;
-        } else if (studentKelompok === g2) {
+        } else if (studentKelompok === g2 || actingTeam === 'B') {
           kelompokBadgeHtml = `<span class="badge-kelompok-tag" style="background:#e0e7ff; color:#4338ca; border-color:#c7d2fe; font-weight:800;" data-id="${student.id}" title="Regu B">${escapeHtml(studentKelompok)} (B)</span>`;
+        } else if (actingOfficial) {
+          kelompokBadgeHtml = `<span class="badge-kelompok-tag" style="background:#f1f5f9; color:#475569; border-color:#cbd5e1; font-weight:800;" data-id="${student.id}" title="Perangkat">${escapeHtml(studentKelompok)} (P)</span>`;
         }
+      } else if (actingOfficial) {
+          kelompokBadgeHtml = `<span class="badge-kelompok-tag" style="background:#f1f5f9; color:#475569; border-color:#cbd5e1; font-weight:800;" data-id="${student.id}" title="Perangkat">${escapeHtml(studentKelompok)} (P)</span>`;
       }
       tdHtml += `<td style="text-align: center;">${kelompokBadgeHtml}</td>`;
 
@@ -1101,6 +1135,7 @@ document.addEventListener('DOMContentLoaded', () => {
       saveState();
       selectedBenchPlayerIdForSub = null;
       renderCourtVisualizer();
+      renderStudentRows();
       showToast("Pergantian/penyesuaian pemain berhasil!");
     }
   }
@@ -1473,36 +1508,46 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elBenchArea && elBenchContainer) {
       let benchHTML = '';
 
-      if (benchA.length > 0) {
-        benchHTML += `<div style="margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Cadangan ${escapeHtml(teamA)}</div>
-                    <button class="btn btn-outline-sm" onclick="window.swapAllPlayers('A')" style="font-size: 0.7rem; padding: 2px 6px;">
-                        <i class="fa-solid fa-arrows-rotate"></i> Ganti Semua
-                    </button>
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 12px;">`;
-        benchA.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
-        benchHTML += `</div></div>`;
-      }
+      benchHTML += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 15px;">`;
 
-      if (benchB.length > 0) {
-        benchHTML += `<div style="margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="font-size: 0.8rem; font-weight: bold; color: #64748b;">Cadangan ${escapeHtml(teamB)}</div>
-                    <button class="btn btn-outline-sm" onclick="window.swapAllPlayers('B')" style="font-size: 0.7rem; padding: 2px 6px;">
-                        <i class="fa-solid fa-arrows-rotate"></i> Ganti Semua
-                    </button>
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 12px;">`;
-        benchB.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
-        benchHTML += `</div></div>`;
+      // Always render Bench A box
+      benchHTML += `<div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #d1fae5; padding-bottom: 8px;">
+                  <div style="font-size: 0.85rem; font-weight: 800; color: #047857;"><i class="fa-solid fa-users"></i> Cadangan ${escapeHtml(teamA)}</div>
+                  <button class="btn btn-outline-sm" onclick="window.swapAllPlayers('A')" style="font-size: 0.7rem; padding: 3px 8px; border-color: #34d399; color: #047857;" ${benchA.length === 0 ? 'disabled' : ''}>
+                      <i class="fa-solid fa-arrows-rotate"></i> Ganti Semua
+                  </button>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px; min-height: 50px;">`;
+      if (benchA.length > 0) {
+        benchA.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+      } else {
+        benchHTML += `<div style="width: 100%; text-align: center; color: #10b981; opacity: 0.7; font-size: 0.8rem; font-style: italic; align-self: center;">Tidak ada pemain cadangan</div>`;
       }
+      benchHTML += `</div></div>`;
+
+      // Always render Bench B box
+      benchHTML += `<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #dbeafe; padding-bottom: 8px;">
+                  <div style="font-size: 0.85rem; font-weight: 800; color: #1d4ed8;"><i class="fa-solid fa-users"></i> Cadangan ${escapeHtml(teamB)}</div>
+                  <button class="btn btn-outline-sm" onclick="window.swapAllPlayers('B')" style="font-size: 0.7rem; padding: 3px 8px; border-color: #60a5fa; color: #1d4ed8;" ${benchB.length === 0 ? 'disabled' : ''}>
+                      <i class="fa-solid fa-arrows-rotate"></i> Ganti Semua
+                  </button>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px; min-height: 50px;">`;
+      if (benchB.length > 0) {
+        benchB.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+      } else {
+        benchHTML += `<div style="width: 100%; text-align: center; color: #3b82f6; opacity: 0.7; font-size: 0.8rem; font-style: italic; align-self: center;">Tidak ada pemain cadangan</div>`;
+      }
+      benchHTML += `</div></div>`;
+
+      benchHTML += `</div>`;
 
       const poolStudents = state.currentLineup.poolOther.map(getStd).filter(Boolean);
       if (poolStudents.length > 0 && !isSenamMode) {
-        benchHTML += `<div>
-                <div style="font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 8px;">Kumpulan Murid Lainnya (Tersedia untuk Perangkat Pertandingan)</div>
+        benchHTML += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;"><i class="fa-solid fa-users-viewfinder"></i> Kumpulan Murid Lainnya (Tersedia untuk Perangkat Pertandingan)</div>
                 <div style="display: flex; flex-wrap: wrap; gap: 12px;">`;
         poolStudents.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
         benchHTML += `</div></div>`;
@@ -2075,6 +2120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     renderCourtVisualizer();
+    renderStudentRows();
     const std = state.students.find(s => s.id === studentId);
     const displayRole = role.replace(/_/g, ' ').toUpperCase();
     showToast(`${std ? std.name : 'Murid'} berhasil ditugaskan sebagai ${displayRole}!`);
@@ -2098,6 +2144,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => { modalOfficial.style.display = 'none'; }, 250);
     }
     renderCourtVisualizer();
+    renderStudentRows();
     showToast(`Slot petugas ${role.replace(/_/g, ' ').toUpperCase()} telah dikosongkan.`);
   };
 
@@ -2307,6 +2354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resolveOfficialConflicts();
     saveState();
     renderCourtVisualizer();
+    renderStudentRows();
     showToast(`Berhasil menukar secara serentak seluruh ${swapCount} pemain cadangan Tim ${teamSide} ke lapangan!`);
   };
 
