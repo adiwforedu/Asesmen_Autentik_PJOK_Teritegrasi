@@ -371,7 +371,7 @@
           <!-- Dynamic Criteria Columns inserted by JS -->
           <th style="width: 55px; text-align: center;">Skor</th>
           <th style="width: 125px; min-width: 125px; text-align: center;">Keterangan Interval</th>
-          <th class="no-print" style="width: 55px; text-align: center;">Reset</th>
+          <th class="no-print" style="width: 90px; text-align: center;">Aksi</th>
         </tr>
       </thead>
       <tbody id="tableBodySiswa">
@@ -644,6 +644,14 @@
           <strong>Nama</strong> dan <strong>Kelas</strong> (contoh: <i>X E-1, X E-2, XI F-1</i>) akan otomatis diimpor
           dengan kondisi skor nilai kosong (belum terpilih).
         </p>
+
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="font-weight:bold;">Metode Impor:</label>
+          <div style="display: flex; gap: 15px; margin-top: 5px;">
+             <label style="display:flex; align-items:center; gap:5px;"><input type="radio" name="importMethod" value="replace" checked> Timpa Kelas (Hapus yg lama)</label>
+             <label style="display:flex; align-items:center; gap:5px;"><input type="radio" name="importMethod" value="append"> Tambahkan (Append)</label>
+          </div>
+        </div>
 
         <div class="form-group">
           <label>Option A: Unggah File Database CSV / Excel (.csv, .xlsx)</label>

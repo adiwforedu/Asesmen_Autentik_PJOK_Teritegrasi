@@ -1325,6 +1325,20 @@ td.crit-col-5-cell {
   pointer-events: all;
 }
 
+.modal-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  width: 95%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+}
+
 .modal-rubric-card {
   background: #ffffff;
   border-radius: 20px;

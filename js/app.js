@@ -226,39 +226,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function loadSampleData() {
-    const generated = [];
-
-    // Master List of 42 Clean Real Student Names
-    const master42Names = [
-      'Adam Khadafi Al-Ghiffari', 'Ahmad Jeriko', 'Ahmad Rizky Pratama', 'Alisa Rahmawati', 'Alvin Putra',
-      'Andika Pratama', 'Bintang Kejora', 'Budi Santoso', 'Cahya Kamila', 'Citra Dewi Anggraini',
-      'Dian Sastrowardoyo', 'Doni Kusuma', 'Eka Putri Lestari', 'Erwin Gutawa', 'Fajar Nugraha',
-      'Fitri Carlina', 'Gilang Dirga', 'Gita Savitri', 'Hendra Gunawan', 'Hesti Purwadinata',
-      'Indah Permata', 'Irfan Hakim', 'Joko Widodo', 'Julia Perez', 'Kaesang Pangarep',
-      'Kiki Amalia', 'Lesti Kejora', 'Lestari Rahayu', 'Megawati Soekarnoputri', 'Muhammad Farhan',
-      'Nabila Syakieb', 'Nazaruddin', 'Okta Ramadhan', 'Olla Ramlan', 'Prabowo Subianto',
-      'Putri Handayani', 'Qori Sandioriva', 'Rian Hidayat', 'Siti Nurhaliza', 'Taufik Hidayat',
-      'Umar Amiruddin', 'Zainal Abidin'
-    ];
-
-    // Classes X E-1 to X E-12: EXACTLY 42 Students Each (Total = 12 * 42 = 504 Students)
-    // Default Status: ALL STUDENTS START AS 'Belum Dikelompokkan'
-    for (let cNum = 1; cNum <= 12; cNum++) {
-      const clsName = `X E-${cNum}`;
-      for (let i = 0; i < 42; i++) {
-        const studentName = master42Names[i % master42Names.length];
-        generated.push({
-          id: `std_${cNum}_${i + 1}`,
-          name: studentName,
-          kelas: clsName,
-          kelompok: 'Belum Dikelompokkan',
-          scores: {}
-        });
-      }
-    }
-
-    state.students = generated;
+    state.students = [];
     state.isUserImported = false;
+    state.selectedKelas = 'all';
   }
 
   function clearAllStudentScores() {
@@ -565,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
     html += `<th style="width: 55px; text-align: center;">Skor</th>`;
     html += `<th style="width: 70px; text-align: center;">Nilai Akhir</th>`;
     html += `<th style="width: 125px; min-width: 125px; text-align: center;">Keterangan Interval</th>`;
-    html += `<th class="no-print" style="width: 55px; text-align: center;">Reset</th>`;
+    html += `<th class="no-print" style="width: 90px; text-align: center;">Aksi</th>`;
 
     elTableHead.innerHTML = html;
   }
@@ -691,9 +661,14 @@ document.addEventListener('DOMContentLoaded', () => {
       </td>`;
 
       tdHtml += `<td class="no-print" style="text-align: center;">
-        <button class="btn-rotate-scores btn-reset-student-scores" data-id="${student.id}" title="Hapus/Reset Hasil Penilaian Siswa">
-          <i class="fa-solid fa-rotate-left"></i>
-        </button>
+        <div style="display:flex; justify-content:center; gap:4px;">
+          <button class="btn-rotate-scores btn-reset-student-scores" data-id="${student.id}" title="Hapus/Reset Hasil Penilaian Siswa">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+          <button class="btn-rotate-scores btn-delete-student" data-id="${student.id}" style="color: #ef4444; border-color: #ef4444; background: transparent;" title="Hapus Siswa">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
       </td>`;
 
       tr.innerHTML = tdHtml;
@@ -2935,6 +2910,28 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(`Hasil penilaian untuk ${student.name} telah dikosongkan.`);
         }
       }
+
+      // DELETE STUDENT BUTTON
+      const btnDeleteStudent = e.target.closest('.btn-delete-student');
+      if (btnDeleteStudent) {
+        triggerHapticFeedback();
+        const stdId = btnDeleteStudent.dataset.id;
+        const studentIndex = state.students.findIndex(s => s.id === stdId);
+        if (studentIndex > -1) {
+          if (confirm(`Apakah Anda yakin ingin menghapus data murid ${state.students[studentIndex].name}?`)) {
+            state.students.splice(studentIndex, 1);
+            saveState();
+            renderKopClassDropdown();
+            renderGroupFilterDropdown();
+            renderStudentRows();
+            renderStats();
+            if (elCourtVisualizerPanel && elCourtVisualizerPanel.style.display !== 'none') {
+              renderCourtVisualizer();
+            }
+            showToast('Murid berhasil dihapus.');
+          }
+        }
+      }
     });
 
     // Student Name Edit
@@ -3116,6 +3113,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = document.getElementById('textPasteNama').value;
       const fileInput = document.getElementById('fileImportExcel');
       const manualTargetKelas = document.getElementById('inputTargetImportKelas').value.trim() || 'X E-1';
+      const importMethodElem = document.querySelector('input[name="importMethod"]:checked');
+      const importMethod = importMethodElem ? importMethodElem.value : 'replace';
 
       if (fileInput.files.length > 0) {
         ExcelExporter.importFromExcel(fileInput.files[0], (records) => {
@@ -3125,7 +3124,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           // Filter students in current target class or replace cleanly
           const targetCls = records[0].kelas || manualTargetKelas;
-          state.students = state.students.filter(s => s.kelas !== targetCls);
+          if (importMethod === 'replace') {
+            state.students = state.students.filter(s => s.kelas !== targetCls);
+          }
           addImportedRecords(records);
           modalImport.classList.remove('active');
           fileInput.value = '';
@@ -3134,7 +3135,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const names = text.split('\n').map(n => n.trim()).filter(n => ExcelExporter.isValidStudentName(n));
         const records = names.map(name => ({ name, kelas: manualTargetKelas }));
 
-        state.students = state.students.filter(s => s.kelas !== manualTargetKelas);
+        if (importMethod === 'replace') {
+          state.students = state.students.filter(s => s.kelas !== manualTargetKelas);
+        }
         addImportedRecords(records);
         modalImport.classList.remove('active');
         document.getElementById('textPasteNama').value = '';
