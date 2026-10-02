@@ -128,10 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
     inputTanggal.value = state.meta.tanggal;
 
     // Load from LocalStorage if available
-    const savedState = localStorage.getItem('pjok_assessment_state');
-    if (savedState) {
+    const savedRaw = localStorage.getItem('pjok_assessment_state');
+    if (savedRaw) {
       try {
-        const parsed = JSON.parse(savedState);
+        const parsed = JSON.parse(savedRaw);
         state.meta = Object.assign({}, state.meta, parsed.meta || {});
         state.isUserImported = parsed.isUserImported || false;
 
@@ -144,48 +144,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (parsed.currentSport) {
-          rubricEngine.setSportPreset(parsed.currentSport);
+          try { rubricEngine.setSportPreset(parsed.currentSport); } catch (e) { /* ignore */ }
         }
         if (parsed.criteria && Array.isArray(parsed.criteria)) {
-          // Clean out unwanted draft 'Kriteria Baru' from old local cache
-          const cleanCriteria = parsed.criteria.filter(c => c && c.name && !/^KRITERIA BARU\s*\d*$/i.test(c.name.trim()));
-          if (cleanCriteria.length > 0) {
-            rubricEngine.setCriteria(cleanCriteria);
-          } else {
-            rubricEngine.resetCurrentSportToDefault();
-          }
+          try {
+            const cleanCriteria = parsed.criteria.filter(c => c && c.name && !/^KRITERIA BARU\s*\d*$/i.test(c.name.trim()));
+            if (cleanCriteria.length > 0) rubricEngine.setCriteria(cleanCriteria);
+            else rubricEngine.resetCurrentSportToDefault();
+          } catch (e) { /* ignore criteria error */ }
         }
 
-        // Check if cached data was corrupted from old faulty import (e.g. > 550 total or inflated class)
-        const hasInflatedClass = parsed.students && parsed.students.length > 550;
+        // ----------------------------------------------------------------
+        // LOAD STUDENTS — Prioritas utama: jangan pernah buang data murid
+        // yang sudah tersimpan kecuali benar-benar rusak / terlalu besar.
+        // ----------------------------------------------------------------
+        const hasInflatedClass = parsed.students && parsed.students.length > 2000;
 
-        // Load students if they exist and aren't corrupted, regardless of whether they were imported or generated
         if (!hasInflatedClass && parsed.students && Array.isArray(parsed.students) && parsed.students.length > 0) {
-          const valid = parsed.students.filter(s => s && s.name && ExcelExporter.isValidStudentName(s.name));
-          if (valid.length > 0) {
-            state.students = valid;
-          } else {
-            loadSampleData();
+          // Validasi longgar: cukup pastikan ada properti name yang berupa string > 0
+          // Tidak pakai isValidStudentName() di sini karena bisa menyebabkan seluruh
+          // data terhapus jika ExcelExporter belum siap atau ada nama yang tidak umum.
+          const safeStudents = parsed.students.filter(s => s && typeof s.name === 'string' && s.name.trim().length > 0);
+          if (safeStudents.length > 0) {
+            state.students = safeStudents;
           }
-        } else {
-          loadSampleData();
+          // Jika safeStudents kosong (semua nama benar-benar invalid), tetap jangan hapus — biarkan kosong saja
         }
+        // Jika parsed.students tidak ada (undefined/null/[]) — biarkan state.students kosong,
+        // JANGAN panggil loadSampleData() karena bisa menimpa data kelas lain yang masih ada.
 
-        if (parsed.selectedKelas) {
-          state.selectedKelas = parsed.selectedKelas;
-        }
-
-        if (parsed.selectedKelompok) {
-          state.selectedKelompok = parsed.selectedKelompok;
-        }
-
+        if (parsed.selectedKelas) state.selectedKelas = parsed.selectedKelas;
+        if (parsed.selectedKelompok) state.selectedKelompok = parsed.selectedKelompok;
         if (parsed.matchResults && typeof parsed.matchResults === 'object') {
           state.matchResults = parsed.matchResults;
         } else {
           state.matchResults = {};
         }
 
-        // Ensure every student has a valid kelompok attribute
+        // Pastikan setiap murid punya scores dan kelompok
         state.students.forEach((s, idx) => {
           if (!s.scores) s.scores = {};
           if (!s.kelompok) {
@@ -195,16 +191,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Sync UI
-        document.getElementById('dispJudul').innerText = state.meta.judul;
-        document.getElementById('dispSekolah').innerText = state.meta.sekolah;
-        document.getElementById('dispSubHeader').innerText = state.meta.subHeader;
+        try {
+          document.getElementById('dispJudul').innerText = state.meta.judul;
+          document.getElementById('dispSekolah').innerText = state.meta.sekolah;
+          document.getElementById('dispSubHeader').innerText = state.meta.subHeader;
+        } catch (e) { /* ignore UI sync errors */ }
+
       } catch (e) {
-        console.warn('Failed to load saved state:', e);
-        loadSampleData();
+        // JSON parse error — localStorage corrupt. Hanya reset meta, JANGAN hapus apapun.
+        console.warn('Failed to parse saved state (JSON error):', e);
+        // Coba ambil ulang untuk debug
+        localStorage.removeItem('pjok_assessment_state');
       }
-    } else {
-      loadSampleData();
     }
+    // Jika tidak ada savedRaw sama sekali — state.students tetap [] (kosong dari default)
 
     // Sync input form fields
     inputTahunPelajaran.value = state.meta.tahunPelajaran || '2025-2026';
@@ -218,11 +218,14 @@ document.addEventListener('DOMContentLoaded', () => {
     inputNipKepsek.value = state.meta.nipKepsek || '19710325 199702 1 002';
     inputKota.value = state.meta.kota || 'Ciamis';
 
-    saveState();
     renderSportDropdownOptions();
     renderKopClassDropdown();
     renderAll();
     setupEventListeners();
+    // Simpan state setelah semua render selesai — hanya jika ada murid
+    if (state.students.length > 0) {
+      saveState();
+    }
   }
 
   function loadSampleData() {
@@ -548,10 +551,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     elTableBody.innerHTML = '';
 
+    // Urutkan murid: per kelompok (numerik) → lalu per nama
+    // supaya tabel menampilkan semua anggota kelompok secara berurutan, tidak selang-seling
+    const sortedStudents = [...state.students].sort((a, b) => {
+      const grpA = a.kelompok || 'Kelompok 1';
+      const grpB = b.kelompok || 'Kelompok 1';
+      const grpCmp = grpA.localeCompare(grpB, undefined, { numeric: true, sensitivity: 'base' });
+      if (grpCmp !== 0) return grpCmp;
+      return (a.name || '').localeCompare(b.name || '', 'id');
+    });
+
     let visibleCount = 0;
     let indexNo = 1;
+    let lastKelompok = null; // untuk separator visual antar kelompok
 
-    state.students.forEach((student) => {
+    sortedStudents.forEach((student) => {
       const studentKelas = student.kelas || 'X E-1';
       const studentKelompok = student.kelompok || 'Kelompok 1';
 
@@ -595,6 +609,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       visibleCount++;
+
+      // Tambahkan baris pemisah antar kelompok (hanya saat filter = Semua Kelompok)
+      if (selectedKelompok === 'all' && studentKelompok !== lastKelompok) {
+        lastKelompok = studentKelompok;
+        const colCount = criteria.length + 8;
+        const sepTr = document.createElement('tr');
+        sepTr.className = 'no-print';
+        sepTr.innerHTML = `<td colspan="${colCount}" style="
+          background: linear-gradient(90deg, #4f46e5 0%, #818cf8 100%);
+          color: white;
+          font-weight: 800;
+          font-size: 0.82rem;
+          padding: 7px 16px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          border: none;
+        "><i class="fa-solid fa-users" style="margin-right: 6px; opacity: 0.85;"></i>${escapeHtml(studentKelompok)}</td>`;
+        elTableBody.appendChild(sepTr);
+      }
 
       const tr = document.createElement('tr');
 
@@ -1271,6 +1304,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const baseStudents = state.students.filter(s => s.kelas === state.selectedKelas);
 
+    // Compute distinct groups (sorted) for 'all' mode
+    const allGroups = [...new Set(baseStudents.map(s => s.kelompok || 'Kelompok 1'))]
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    const isAllMode = state.selectedKelompok === 'all';
+
     // Initialize lineup if configuration changed
     if (state.currentLineup.hash !== currentHash) {
       let activeStudentsTeamA = [];
@@ -1283,12 +1321,13 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (state.selectedKelompok !== 'all') {
         activeStudentsTeamA = baseStudents.filter(s => s.kelompok === state.selectedKelompok);
       } else {
-        const midIndex = Math.ceil(baseStudents.length / 2);
-        activeStudentsTeamA = baseStudents.slice(0, midIndex);
-        activeStudentsTeamB = baseStudents.slice(midIndex);
+        // Mode ALL: gunakan kelompok pertama sebagai Tim A, kedua sebagai Tim B di lapangan
+        if (allGroups.length >= 1) activeStudentsTeamA = baseStudents.filter(s => (s.kelompok || 'Kelompok 1') === allGroups[0]);
+        if (allGroups.length >= 2) activeStudentsTeamB = baseStudents.filter(s => (s.kelompok || 'Kelompok 1') === allGroups[1]);
       }
 
-      const otherStudents = baseStudents.filter(s => !activeStudentsTeamA.includes(s) && !activeStudentsTeamB.includes(s));
+      const assignedIds = new Set([...activeStudentsTeamA, ...activeStudentsTeamB].map(s => s.id));
+      const otherStudents = baseStudents.filter(s => !assignedIds.has(s.id));
 
       state.currentLineup.hash = currentHash;
       state.currentLineup.startersA = activeStudentsTeamA.slice(0, maxPlayers).map(s => s.id);
@@ -1483,10 +1522,65 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elBenchArea && elBenchContainer) {
       let benchHTML = '';
 
-      benchHTML += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 15px;">`;
+      // Palet warna untuk kelompok (dirotasi jika > palet)
+      const GROUP_PALETTES = [
+        { bg: '#ecfdf5', border: '#a7f3d0', headerBg: '#d1fae5', color: '#047857', icon: '#10b981' },
+        { bg: '#eff6ff', border: '#bfdbfe', headerBg: '#dbeafe', color: '#1d4ed8', icon: '#3b82f6' },
+        { bg: '#fdf4ff', border: '#e9d5ff', headerBg: '#f3e8ff', color: '#7c3aed', icon: '#a855f7' },
+        { bg: '#fff7ed', border: '#fed7aa', headerBg: '#ffedd5', color: '#c2410c', icon: '#f97316' },
+        { bg: '#fefce8', border: '#fde68a', headerBg: '#fef9c3', color: '#92400e', icon: '#eab308' },
+        { bg: '#fff1f2', border: '#fecdd3', headerBg: '#ffe4e6', color: '#be123c', icon: '#f43f5e' },
+        { bg: '#f0fdf4', border: '#bbf7d0', headerBg: '#dcfce7', color: '#15803d', icon: '#22c55e' },
+        { bg: '#f0f9ff', border: '#bae6fd', headerBg: '#e0f2fe', color: '#0369a1', icon: '#0ea5e9' },
+      ];
 
-      // Always render Bench A box
-      benchHTML += `<div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+      if (isAllMode && allGroups.length > 0) {
+        // === MODE ALL: tampilkan setiap kelompok dalam kotak terpisah ===
+        benchHTML += `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 15px;">`;
+
+        allGroups.forEach((grpName, gi) => {
+          const pal = GROUP_PALETTES[gi % GROUP_PALETTES.length];
+          const grpStudents = baseStudents.filter(s => (s.kelompok || 'Kelompok 1') === grpName);
+          const starters = grpStudents.slice(0, maxPlayers);
+          const bench = grpStudents.slice(maxPlayers);
+
+          benchHTML += `
+            <div style="background: ${pal.bg}; border: 2px solid ${pal.border}; border-radius: 12px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1.5px solid ${pal.headerBg}; padding-bottom: 8px;">
+                <div style="font-size: 0.85rem; font-weight: 800; color: ${pal.color};">
+                  <i class="fa-solid fa-users" style="color: ${pal.icon};"></i>
+                  ${escapeHtml(grpName)}
+                  <span style="font-weight: 500; font-size: 0.78rem; opacity: 0.85;">(${grpStudents.length} murid)</span>
+                </div>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px; min-height: 50px;">`;
+
+          if (grpStudents.length > 0) {
+            grpStudents.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+          } else {
+            benchHTML += `<div style="width:100%; text-align:center; color:${pal.color}; opacity:0.6; font-size:0.8rem; font-style:italic;">Kelompok kosong</div>`;
+          }
+
+          benchHTML += `</div>`;
+
+          // Sub-label cadangan jika ada yang melebihi maxPlayers
+          if (bench.length > 0) {
+            benchHTML += `<div style="margin-top:8px; padding-top:6px; border-top:1px dashed ${pal.border}; font-size:0.72rem; color:${pal.color}; opacity:0.8; font-weight:600;">
+              <i class="fa-solid fa-bench-tree" style="font-size:0.65rem;"></i> Cadangan: ${bench.map(s => escapeHtml(s.name.split(' ')[0])).join(', ')}
+            </div>`;
+          }
+
+          benchHTML += `</div>`;
+        });
+
+        benchHTML += `</div>`;
+
+      } else {
+        // === MODE 2 TIM / SINGLE GROUP: tampilan cadangan A dan B seperti semula ===
+        benchHTML += `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 15px;">`;
+
+        // Bench A
+        benchHTML += `<div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #d1fae5; padding-bottom: 8px;">
                   <div style="font-size: 0.85rem; font-weight: 800; color: #047857;"><i class="fa-solid fa-users"></i> Cadangan ${escapeHtml(teamA)}</div>
                   <button class="btn btn-outline-sm" onclick="window.swapAllPlayers('A')" style="font-size: 0.7rem; padding: 3px 8px; border-color: #34d399; color: #047857;" ${benchA.length === 0 ? 'disabled' : ''}>
@@ -1494,15 +1588,15 @@ document.addEventListener('DOMContentLoaded', () => {
                   </button>
               </div>
               <div style="display: flex; flex-wrap: wrap; gap: 12px; min-height: 50px;">`;
-      if (benchA.length > 0) {
-        benchA.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
-      } else {
-        benchHTML += `<div style="width: 100%; text-align: center; color: #10b981; opacity: 0.7; font-size: 0.8rem; font-style: italic; align-self: center;">Tidak ada pemain cadangan</div>`;
-      }
-      benchHTML += `</div></div>`;
+        if (benchA.length > 0) {
+          benchA.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+        } else {
+          benchHTML += `<div style="width: 100%; text-align: center; color: #10b981; opacity: 0.7; font-size: 0.8rem; font-style: italic; align-self: center;">Tidak ada pemain cadangan</div>`;
+        }
+        benchHTML += `</div></div>`;
 
-      // Always render Bench B box
-      benchHTML += `<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        // Bench B
+        benchHTML += `<div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #dbeafe; padding-bottom: 8px;">
                   <div style="font-size: 0.85rem; font-weight: 800; color: #1d4ed8;"><i class="fa-solid fa-users"></i> Cadangan ${escapeHtml(teamB)}</div>
                   <button class="btn btn-outline-sm" onclick="window.swapAllPlayers('B')" style="font-size: 0.7rem; padding: 3px 8px; border-color: #60a5fa; color: #1d4ed8;" ${benchB.length === 0 ? 'disabled' : ''}>
@@ -1510,22 +1604,24 @@ document.addEventListener('DOMContentLoaded', () => {
                   </button>
               </div>
               <div style="display: flex; flex-wrap: wrap; gap: 12px; min-height: 50px;">`;
-      if (benchB.length > 0) {
-        benchB.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
-      } else {
-        benchHTML += `<div style="width: 100%; text-align: center; color: #3b82f6; opacity: 0.7; font-size: 0.8rem; font-style: italic; align-self: center;">Tidak ada pemain cadangan</div>`;
-      }
-      benchHTML += `</div></div>`;
-
-      benchHTML += `</div>`;
-
-      const poolStudents = state.currentLineup.poolOther.map(getStd).filter(Boolean);
-      if (poolStudents.length > 0 && !isSenamMode) {
-        benchHTML += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                <div style="font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;"><i class="fa-solid fa-users-viewfinder"></i> Kumpulan Murid Lainnya (Tersedia untuk Perangkat Pertandingan)</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 12px;">`;
-        poolStudents.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+        if (benchB.length > 0) {
+          benchB.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+        } else {
+          benchHTML += `<div style="width: 100%; text-align: center; color: #3b82f6; opacity: 0.7; font-size: 0.8rem; font-style: italic; align-self: center;">Tidak ada pemain cadangan</div>`;
+        }
         benchHTML += `</div></div>`;
+
+        benchHTML += `</div>`;
+
+        // Pool kelompok lain
+        const poolStudents = state.currentLineup.poolOther.map(getStd).filter(Boolean);
+        if (poolStudents.length > 0 && !isSenamMode) {
+          benchHTML += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                  <div style="font-size: 0.8rem; font-weight: bold; color: #475569; margin-bottom: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;"><i class="fa-solid fa-users-viewfinder"></i> Kumpulan Murid Lainnya (Tersedia untuk Perangkat Pertandingan)</div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 12px;">`;
+          poolStudents.forEach(std => { benchHTML += createPlayerPin(std, 0, 0, true); });
+          benchHTML += `</div></div>`;
+        }
       }
 
       if (benchHTML.trim().length > 0) {
@@ -2540,29 +2636,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // AUTOMATIC GROUP DIVISION BUTTON
     const btnAutoGroup = document.getElementById('btnAutoDivideGroups');
-    if (btnAutoGroup) {
-      btnAutoGroup.addEventListener('click', () => {
-        triggerHapticFeedback();
-        const currentCls = state.selectedKelas === 'all' ? 'Seluruh Kelas' : `Kelas ${state.selectedKelas}`;
-        const inputSize = prompt(`Bagi murid di ${currentCls} ke dalam kelompok secara otomatis!\n\nMasukkan jumlah anggota per tim (contoh: 6 untuk Volley/Basket 6-an, 5 untuk Basket 5v5, 3 untuk 3x3):`, '6');
+    const modalAutoDivide = document.getElementById('modalAutoDivideGroups');
+    const btnCloseAutoDivideModal = document.getElementById('btnCloseAutoDivideModal');
+    const btnCancelAutoDivide = document.getElementById('btnCancelAutoDivide');
+    const btnConfirmAutoDivide = document.getElementById('btnConfirmAutoDivide');
+    const radioDivideBySize = document.getElementById('radioDivideBySize');
+    const radioDivideByCount = document.getElementById('radioDivideByCount');
+    const inputDivideValue = document.getElementById('inputDivideValue');
+    const labelDivideInput = document.getElementById('labelDivideInput');
+    const dividePreviewInfo = document.getElementById('dividePreviewInfo');
+    const labelDivideBySize = document.getElementById('labelDivideBySize');
+    const labelDivideByCount = document.getElementById('labelDivideByCount');
 
-        if (inputSize && !isNaN(parseInt(inputSize, 10)) && parseInt(inputSize, 10) > 0) {
-          const groupSize = parseInt(inputSize, 10);
+    function getActiveStudentCount() {
+      return state.students.filter(s => state.selectedKelas === 'all' || s.kelas === state.selectedKelas).length;
+    }
 
-          let counter = 0;
-          state.students.forEach(std => {
-            if (state.selectedKelas === 'all' || std.kelas === state.selectedKelas) {
-              const groupNum = Math.floor(counter / groupSize) + 1;
-              std.kelompok = `Kelompok ${groupNum}`;
-              counter++;
-            }
+    function updateDividePreview() {
+      const val = parseInt(inputDivideValue.value, 10);
+      const total = getActiveStudentCount();
+      if (!val || val < 1 || !total) { dividePreviewInfo.textContent = ''; return; }
+
+      if (radioDivideBySize.checked) {
+        const numGroups = Math.ceil(total / val);
+        dividePreviewInfo.innerHTML = `<i class="fa-solid fa-users"></i> ${total} murid akan dibagi ke dalam <strong>${numGroups} kelompok</strong> (~${val} orang per kelompok)`;
+      } else {
+        const sizePerGroup = Math.ceil(total / val);
+        dividePreviewInfo.innerHTML = `<i class="fa-solid fa-users"></i> ${total} murid akan dibagi ke dalam <strong>${val} kelompok</strong> (~${sizePerGroup} orang per kelompok)`;
+      }
+    }
+
+    function updateDivideLabel() {
+      if (radioDivideBySize.checked) {
+        labelDivideInput.textContent = 'Jumlah anggota per kelompok:';
+        inputDivideValue.value = 6;
+        labelDivideBySize.style.borderColor = 'var(--primary)';
+        labelDivideBySize.style.background = 'var(--primary-light)';
+        labelDivideByCount.style.borderColor = 'var(--border-color)';
+        labelDivideByCount.style.background = '';
+      } else {
+        labelDivideInput.textContent = 'Jumlah kelompok yang diinginkan:';
+        inputDivideValue.value = 4;
+        labelDivideByCount.style.borderColor = 'var(--primary)';
+        labelDivideByCount.style.background = 'var(--primary-light)';
+        labelDivideBySize.style.borderColor = 'var(--border-color)';
+        labelDivideBySize.style.background = '';
+      }
+      updateDividePreview();
+    }
+
+    function openAutoDivideModal() {
+      triggerHapticFeedback();
+      radioDivideBySize.checked = true;
+      updateDivideLabel();
+      modalAutoDivide.classList.add('active');
+    }
+
+    function closeAutoDivideModal() {
+      modalAutoDivide.classList.remove('active');
+    }
+
+    if (btnAutoGroup) btnAutoGroup.addEventListener('click', openAutoDivideModal);
+    if (btnCloseAutoDivideModal) btnCloseAutoDivideModal.addEventListener('click', closeAutoDivideModal);
+    if (btnCancelAutoDivide) btnCancelAutoDivide.addEventListener('click', closeAutoDivideModal);
+    if (modalAutoDivide) modalAutoDivide.addEventListener('click', (e) => { if (e.target === modalAutoDivide) closeAutoDivideModal(); });
+
+    if (radioDivideBySize) radioDivideBySize.addEventListener('change', updateDivideLabel);
+    if (radioDivideByCount) radioDivideByCount.addEventListener('change', updateDivideLabel);
+    if (inputDivideValue) inputDivideValue.addEventListener('input', updateDividePreview);
+
+    if (btnConfirmAutoDivide) {
+      btnConfirmAutoDivide.addEventListener('click', () => {
+        const val = parseInt(inputDivideValue.value, 10);
+        if (!val || val < 1) { showToast('Masukkan angka yang valid!'); return; }
+
+        let counter = 0;
+        const activeStudents = state.students.filter(s => state.selectedKelas === 'all' || s.kelas === state.selectedKelas);
+        const total = activeStudents.length;
+
+        if (radioDivideBySize.checked) {
+          // Mode: jumlah anggota per kelompok — round-robin agar distribusi merata
+          const groupSize = val;
+          const numGroups = Math.ceil(total / groupSize);
+          // round-robin: murid ke-i masuk kelompok (i % numGroups) + 1
+          // sehingga selisih antar kelompok paling banyak 1 orang
+          activeStudents.forEach((std, idx) => {
+            std.kelompok = `Kelompok ${(idx % numGroups) + 1}`;
+            counter++;
           });
-
-          state.selectedKelompok = 'all';
-          saveState();
-          renderAll();
-          showToast(`Berhasil membagi ${counter} murid ke dalam kelompok (~${groupSize} murid per tim)!`);
+          const base = Math.floor(total / numGroups);
+          const bigger = total % numGroups;
+          const sizeDesc = bigger > 0
+            ? `${bigger} kelompok berisi ${base + 1} orang, ${numGroups - bigger} kelompok berisi ${base} orang`
+            : `masing-masing ${base} orang`;
+          showToast(`Berhasil membagi ${counter} murid ke dalam ${numGroups} kelompok (${sizeDesc})!`);
+        } else {
+          // Mode: jumlah kelompok — round-robin agar distribusi merata
+          const numGroups = val;
+          // round-robin: murid ke-i masuk kelompok (i % numGroups) + 1
+          // sehingga selisih antar kelompok paling banyak 1 orang
+          activeStudents.forEach((std, idx) => {
+            std.kelompok = `Kelompok ${(idx % numGroups) + 1}`;
+            counter++;
+          });
+          const base = Math.floor(total / numGroups);
+          const bigger = total % numGroups;
+          const sizeDesc = bigger > 0
+            ? `${bigger} kelompok berisi ${base + 1} orang, ${numGroups - bigger} kelompok berisi ${base} orang`
+            : `masing-masing ${base} orang`;
+          showToast(`Berhasil membagi ${counter} murid ke dalam ${numGroups} kelompok (${sizeDesc})!`);
         }
+
+        state.selectedKelompok = 'all';
+        saveState();
+        renderAll();
+        closeAutoDivideModal();
+        triggerHapticFeedback();
       });
     }
 
@@ -3122,10 +3311,10 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Tidak ditemukan data murid valid dalam file tersebut.');
             return;
           }
-          // Filter students in current target class or replace cleanly
-          const targetCls = records[0].kelas || manualTargetKelas;
           if (importMethod === 'replace') {
-            state.students = state.students.filter(s => s.kelas !== targetCls);
+            // Hapus semua kelas yang ada dalam file impor baru
+            const affectedClasses = new Set(records.map(r => r.kelas).filter(Boolean));
+            state.students = state.students.filter(s => !affectedClasses.has(s.kelas));
           }
           addImportedRecords(records);
           modalImport.classList.remove('active');
@@ -3136,6 +3325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const records = names.map(name => ({ name, kelas: manualTargetKelas }));
 
         if (importMethod === 'replace') {
+          // Hapus kelas target yang akan ditimpa
           state.students = state.students.filter(s => s.kelas !== manualTargetKelas);
         }
         addImportedRecords(records);
@@ -3183,21 +3373,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function addImportedRecords(records) {
-    if (!state.isUserImported) {
-      state.students = [];
-      state.isUserImported = true;
-    }
+    // Tambahkan records ke state tanpa menghapus data kelas lain
+    // (penghapusan untuk mode 'replace' sudah dilakukan sebelum fungsi ini dipanggil)
+    state.isUserImported = true;
 
     records.forEach((item, i) => {
+      const grpNum = Math.floor((state.students.length % 42) / 6) + 1;
       state.students.push({
         id: 'std_' + Date.now() + '_' + i,
         name: item.name,
         kelas: item.kelas || state.selectedKelas || 'X E-1',
+        kelompok: `Kelompok ${grpNum}`,
         scores: {}
       });
     });
-
-    state.isUserImported = true;
 
     if (records.length > 0 && records[0].kelas) {
       state.selectedKelas = records[0].kelas;
@@ -3209,7 +3398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAll();
 
     const classSummaryCount = state.students.filter(s => s.kelas === state.selectedKelas).length;
-    showToast(`Berhasil mengimpor database! Kelas ${state.selectedKelas}: ${classSummaryCount} murid murni (Nilai Kosong).`);
+    showToast(`Berhasil mengimpor database! Kelas ${state.selectedKelas}: ${classSummaryCount} murid (Nilai Kosong).`);
   }
 
   function escapeHtml(str) {

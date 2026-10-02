@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Asesmen Voli Kustom (Offline & Audio)</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
+  <style>
+    :root {
+      --primary: #4f46e5; --primary-hover: #4338ca;
+      --bg: #f8fafc; --text-main: #1f2937; --text-muted: #6b7280;
+      --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+      --court-out: #2563eb; --court-in: #f97316; --net-color: #e2e8f0;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; color: var(--text-main); padding-bottom: 90px; }
+    
+    /* MODE LIVE SATU LAYAR (Tanpa Scroll) */
+    body.live-mode { padding-bottom: 0; overflow: hidden; height: 100vh; height: 100dvh; }
+    #assessmentView.active-flex { display: flex !important; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+    #assessmentView > .container { flex: 1; display: flex; flex-direction: column; padding: 10px 15px; margin: 0 auto; width: 100%; max-width: 600px; box-sizing: border-box; }
+    #assessmentView .brand-text { margin: 5px 0; font-size: 1rem; flex-shrink: 0; }
+    #assessmentView .court-live-wrapper { flex: 1; display: flex; flex-direction: column; margin: 5px 0 10px 0; min-height: 0; }
+    #assessmentView .court-live { flex: 1; height: auto !important; min-height: 0 !important; max-height: none !important; }
+    #assessmentView .fab-container { position: static; padding: 0; margin-bottom: 5px; flex-shrink: 0; align-self: center; transform: none; display: flex; justify-content: center; width: 100%; }
+
+    /* SCOREBOARD */
+    .scoreboard { background: #0f172a; padding: 10px 15px; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    .team-score { display: flex; flex-direction: column; align-items: center; width: 40%; }
+    .team-score .name { color: #94a3b8; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center;}
+    .serve-indicator { font-size: 0.8rem; margin-left: 3px; opacity: 0; transition: opacity 0.3s; }
+    .serve-indicator.active { opacity: 1; }
+    .score-controls { display: flex; align-items: center; gap: 10px; }
+    .score-btn { background: #334155; color: white; border: none; width: 30px; height: 30px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    .score-btn:active { background: #475569; }
+    .score-display { font-family: 'DotGothic16', sans-serif; font-size: 2.2rem; color: #fbbf24; background: #000; padding: 0 10px; border-radius: 5px; min-width: 50px; text-align: center; }
+    .score-divider { color: #475569; font-size: 1.5rem; font-weight: bold; }
+
+    .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #f1f5f9; }
+    
+    h2 { font-size: 1.1rem; text-align: center; margin-top: 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; color: #334155; }
+    input[type="text"] { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 0.95rem; }
+    
+    .btn-primary { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2); margin-top: 10px;}
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary { width: 100%; padding: 12px; background: #e2e8f0; color: #1e293b; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-top: 10px; display:flex; align-items:center; justify-content:center; gap:8px;}
+    .btn-secondary:active { background: #cbd5e1; }
+    .btn-cloud { background: #3b82f6; color: white; margin-bottom: 15px; }
+
+    /* SETUP GRID */
+    .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;}
+    .team-setup { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .team-setup h3 { text-align: center; font-size: 0.95rem; margin: 0 0 10px 0; color: var(--primary); }
+    .pos-input { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+    .pos-input span { font-size: 0.7rem; font-weight: bold; color: #64748b; }
+    .pos-input input { padding: 6px; font-size: 0.85rem; transition: all 0.2s; }
+    .pos-input input:focus, .pos-input input.active-input { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); background: #eff6ff; outline: none; }
+    
+    .roster-pool { background: white; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); position: sticky; top: 10px; z-index: 50; max-height: 40vh; overflow-y: auto; }
+    .roster-title { font-size: 0.85rem; font-weight: bold; color: #334155; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;}
+    .roster-subtitle { font-size: 0.7rem; color: #64748b; margin-bottom: 10px; }
+    .chip-container { display: flex; flex-wrap: wrap; gap: 6px; }
+    .student-chip { padding: 6px 12px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 20px; font-size: 0.8rem; font-weight: 600; color: #334155; cursor: pointer; user-select: none; transition: all 0.15s; }
+    .student-chip:active { transform: scale(0.95); }
+    .student-chip.used { opacity: 0.4; background: #e2e8f0; pointer-events: none; text-decoration: line-through; }
+
+    /* FULL COURT LIVE VIEW */
+    .court-live-wrapper { position: relative; margin: 15px 0 65px 0; }
+    .court-live {
+      background: var(--court-out); padding: 15px 35px; border-radius: 12px;
+      position: relative; box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+      height: calc(100vh - 210px); height: calc(100dvh - 210px);
+      min-height: 480px; max-height: 800px;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .court-inner { background: var(--court-in); flex: 1; border: 3px solid white; position: relative; display: flex; flex-direction: column; }
+    
+    .half-court { flex: 1; position: relative; display: flex; align-items: center; justify-content: center;}
+    .court-label { font-size: 3rem; font-weight: 900; color: rgba(255,255,255,0.15); letter-spacing: 5px; text-transform: uppercase; user-select: none; pointer-events: none; }
+    
+    .half-court.top { border-bottom: 4px solid var(--net-color); }
+    .attack-line-top { position: absolute; bottom: 33%; left: 0; right: 0; border-bottom: 2px dashed rgba(255,255,255,0.7); }
+    .attack-line-bot { position: absolute; top: 33%; left: 0; right: 0; border-top: 2px dashed rgba(255,255,255,0.7); }
+    .net-marker { position: absolute; top: 50%; left: -10px; right: -10px; height: 12px; background: rgba(255,255,255,0.2); transform: translateY(-50%); z-index: 1; border-top: 2px solid white; border-bottom: 2px solid white; }
+
+    .btn-rotate { position: absolute; right: -10px; z-index: 10; background: var(--warning); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 1.2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; display: flex; justify-content: center; align-items: center; }
+    .btn-rotate:active { transform: scale(0.9); }
+    .rotate-top { top: 20%; }
+    .rotate-bot { bottom: 20%; }
+
+    /* NODE CSS (Transisi Animasi) */
+    #courtNodes { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 5; pointer-events: none; }
+    .player-node {
+      position: absolute; width: 68px; height: 55px; background: white; border-radius: 30px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4); cursor: pointer; pointer-events: all;
+      transition: top 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: translate(-50%, -50%); border: 3px solid var(--danger);
+    }
+    .player-node:active { transform: translate(-50%, -50%) scale(0.9); }
+    .player-node .name { font-size: 0.65rem; font-weight: 700; color: #1e293b; text-align: center; width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .player-node .progress { font-size: 0.6rem; color: white; background: var(--danger); padding: 1px 5px; border-radius: 10px; margin-top: 2px; font-weight: bold; }
+    .player-node.teamB { background: #f1f5f9; }
+    .player-node.official { background: #334155; color: white; border-radius: 8px; width: 60px; height: 35px; border: 3px solid var(--danger);}
+    .player-node.official .name { color: white; }
+    .player-node.official .progress { display: none; }
+    
+    /* COMPLETE STATES (Diletakkan di bawah agar menang prioritas CSS) */
+    .player-node.complete { border-color: var(--success); }
+    .player-node.complete .progress { background: var(--success); }
+    .player-node.official.complete { border-color: var(--success); }
+    
+    .badge-icon { position: absolute; top: -8px; right: -8px; font-size: 1rem; background: white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+    .brand-text { text-align: center; font-family: 'Inter', sans-serif; font-size: 1.1rem; font-weight: 800; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; margin: 20px 0 10px; text-shadow: 1px 1px 0px white; }
+
+    /* KELAS POSISI NORMAL */
+    .pos-B_p1 { top: 15%; left: 20%; } .pos-B_p6 { top: 15%; left: 50%; } .pos-B_p5 { top: 15%; left: 80%; }
+    .pos-B_p2 { top: 35%; left: 20%; } .pos-B_p3 { top: 35%; left: 50%; } .pos-B_p4 { top: 35%; left: 80%; }
+    .pos-A_p4 { top: 65%; left: 20%; } .pos-A_p3 { top: 65%; left: 50%; } .pos-A_p2 { top: 65%; left: 80%; }
+    .pos-A_p5 { top: 85%; left: 20%; } .pos-A_p6 { top: 85%; left: 50%; } .pos-A_p1 { top: 85%; left: 80%; }
+    
+    /* KELAS POSISI KETIKA TUKAR LAPANGAN (SWAPPED) */
+    .court-inner.swapped .pos-A_p2 { top: 35%; left: 20%; } .court-inner.swapped .pos-A_p3 { top: 35%; left: 50%; } .court-inner.swapped .pos-A_p4 { top: 35%; left: 80%; }
+    .court-inner.swapped .pos-A_p1 { top: 15%; left: 20%; } .court-inner.swapped .pos-A_p6 { top: 15%; left: 50%; } .court-inner.swapped .pos-A_p5 { top: 15%; left: 80%; }
+    .court-inner.swapped .pos-B_p4 { top: 65%; left: 20%; } .court-inner.swapped .pos-B_p3 { top: 65%; left: 50%; } .court-inner.swapped .pos-B_p2 { top: 65%; left: 80%; }
+    .court-inner.swapped .pos-B_p5 { top: 85%; left: 20%; } .court-inner.swapped .pos-B_p6 { top: 85%; left: 50%; } .court-inner.swapped .pos-B_p1 { top: 85%; left: 80%; }
+    
+    .pos-W1 { top: 50%; left: -2%; }   
+    .pos-W2 { top: 50%; left: 102%; }  
+    .pos-HG1 { top: -2%; left: -2%; }  
+    .pos-HG2 { top: -2%; left: 102%; } 
+    .pos-HG3 { top: 102%; left: -2%; } 
+    .pos-HG4 { top: 102%; left: 102%;} 
+    .pos-Scorer { top: 50%; left: -18%; }
+    .pos-PelatihA { top: 75%; left: -18%; }
+    .pos-PelatihB { top: 25%; left: -18%; }
+    .pos-Komentator { top: 25%; left: 118%; }
+    .pos-Medis { top: 75%; left: 118%; }
+
+    /* BOTTOM SHEET & MODAL */
+    .bottom-sheet-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+    .bottom-sheet-overlay.active { opacity: 1; pointer-events: all; }
+    
+    .bottom-sheet { position: fixed; bottom: -100%; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 15px 15px 25px; z-index: 1001; transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); box-shadow: 0 -4px 20px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; }
+    .bottom-sheet.active { bottom: 0; }
+    
+    .editor-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: white; width: 90%; max-width: 500px; height: 85vh; z-index: 1002; border-radius: 12px; padding: 20px; opacity: 0; pointer-events: none; transition: all 0.3s; display: flex; flex-direction: column; }
+    .editor-modal.active { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: all; }
+    
+    .editor-content { flex: 1; overflow-y: auto; margin: 15px 0; padding-right: 5px;}
+    .editor-group { background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; margin-bottom: 15px; position: relative;}
+    .editor-group label { font-size: 0.8rem; color: #475569; }
+    .editor-group input { border: 1px solid #cbd5e1; padding: 6px; font-size: 0.9rem; font-weight: bold; background: white; }
+    .editor-group textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 5px; padding: 6px; font-size: 0.8rem; font-family: inherit; margin-top: 4px; resize: vertical; min-height: 40px; box-sizing: border-box; }
+    .btn-remove-crit { position: absolute; top: 10px; right: 10px; background: #fee2e2; color: #ef4444; border: none; border-radius: 5px; cursor: pointer; padding: 5px; }
+
+    .status-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .status-item { padding: 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid #e2e8f0; }
+    .status-item.done { background: #d1fae5; color: #065f46; border-color: #34d399; }
+    .status-item.wait { background: #fee2e2; color: #991b1b; border-color: #f87171; }
+
+    .tab-container { display: flex; gap: 10px; margin-bottom: 10px; }
+    .tab-btn { flex: 1; padding: 8px; background: #e2e8f0; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    .tab-btn.active { background: var(--primary); color: white; }
+
+    .sheet-handle { width: 40px; height: 5px; background: #e2e8f0; border-radius: 3px; margin: 0 auto 10px; }
+    .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;}
+    .sheet-title { font-size: 1rem; font-weight: 700; color: #1e293b; display: flex; flex-direction: column;}
+    .sheet-subtitle { font-size: 0.75rem; color: #64748b; font-weight: normal; margin-top: 2px;}
+    .btn-substitute { background: #fee2e2; color: var(--danger); border: none; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+
+    .crit-row { margin-bottom: 12px; background: #f8fafc; border-radius: 10px; padding: 10px; border: 1px solid #f1f5f9; }
+    .crit-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: #334155; display: flex; justify-content: space-between; align-items: center;}
+    .score-btns { display: flex; gap: 5px; }
+    .s-btn { flex: 1; padding: 8px 0; background: white; border: 2px solid #cbd5e1; border-radius: 6px; font-weight: 700; font-size: 1rem; color: #475569; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+    .s-btn span { font-size: 0.55rem; font-weight: 500; margin-top: 1px; }
+    .s-btn.selected { background: var(--primary); color: white; border-color: var(--primary); }
+    .s-btn.selected span { color: #e0e7ff; }
+
+    .tooltip-icon { color: var(--primary); font-size: 1.1rem; cursor: pointer; }
+    .custom-tooltip { display: none; position: fixed; background: #1e293b; color: white; padding: 12px; border-radius: 8px; font-size: 0.8rem; width: 80%; max-width: 300px; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); left: 50%; transform: translateX(-50%); top: 40%; line-height: 1.4; }
+    .custom-tooltip.show { display: block; }
+    .custom-tooltip strong { color: #fbbf24; }
+
+    .fab-container { position: absolute; bottom: -60px; left: 50%; transform: translateX(-50%); z-index: 900; width: auto; }
+    .btn-save-all { padding: 10px 20px; background: var(--success); color: white; border: none; border-radius: 25px; font-size: 0.85rem; font-weight: bold; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; white-space: nowrap; }
+    
+    .toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: #10b981; color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; transition: top 0.3s; z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 80%; text-align: center; }
+    .toast.show { top: 20px; }
+  </style>
+</head>
+<body>
+  <!-- KANVAS CONFETTI -->
+  <canvas id="confettiCanvas" style="position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:3000; display:none;"></canvas>
+
+  <!-- KODE RAHASIA API -->
+  <script>
+    const CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbwx3n8ulFnWfqT5vRNu22HDx3PbucoKZ0_UuaO1Btw-0Rb2CTIlDVbXN09C0xT37wc3/exec"; // <-- PASTE URL WEB APP APPS SCRIPT ANDA DI SINI
+    const CONFIG_FOLDER_ID = "1-IvqVsp3CZlLtZSNrnsSTgpKLyrA91ig"; // <-- PASTE FOLDER ID JIKA MAU
+
+    // ==========================================
+    // CONFETTI ENGINE (Zero-Dependency)
+    // ==========================================
+    let confettiCtx, confettiParticles = [];
+    function startConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      canvas.style.display = 'block'; canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      confettiCtx = canvas.getContext('2d'); confettiParticles = [];
+      for(let i=0; i<150; i++) {
+        confettiParticles.push({
+          x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height,
+          r: Math.random() * 6 + 4, d: Math.random() * 150 + 10,
+          color: `hsl(${Math.random()*360}, 100%, 50%)`, tilt: Math.floor(Math.random() * 10) - 10,
+          tiltAngle: 0, tiltAngleInc: (Math.random() * 0.07) + 0.05
+        });
+      }
+      requestAnimationFrame(renderConfetti);
+      setTimeout(() => { canvas.style.display = 'none'; }, 6000);
+    }
+    function renderConfetti() {
+      if(document.getElementById('confettiCanvas').style.display === 'none') return;
+      confettiCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      confettiParticles.forEach((p, i) => {
+        p.tiltAngle += p.tiltAngleInc; p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2; p.x += Math.sin(p.d);
+        p.tilt = Math.sin(p.tiltAngle) * 15;
+        confettiCtx.beginPath(); confettiCtx.lineWidth = p.r; confettiCtx.strokeStyle = p.color;
+        confettiCtx.moveTo(p.x + p.tilt + p.r, p.y); confettiCtx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r); confettiCtx.stroke();
+      });
+      requestAnimationFrame(renderConfetti);
+    }
+
+    // ==========================================
+    // AUDIO ENGINE (Web Audio API) Zero-Dependency
+    // ==========================================
+    const SoundFX = {
+      ctx: null,
+      init: function() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if(AudioContext) this.ctx = new AudioContext();
+        }
+        if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      },
+      playTone: function(freq, type, duration, vol=0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + duration);
+      },
+      // 1. Suara Peluit Wasit (Mulai) - Pola: PRIT, PRIIITT
+      whistle: function() {
+        this.init();
+        if(!this.ctx) return;
+        const now = this.ctx.currentTime;
+        
+        const toot = (start, duration) => {
+          const osc = this.ctx.createOscillator();
+          const osc2 = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(2600, start);
+          osc.frequency.linearRampToValueAtTime(2700, start + duration);
+          
+          // Oscillator 2 sedikit berbeda frekuensinya untuk menghasilkan efek "getaran" (trill/beating) khas peluit
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(2650, start); 
+          osc2.frequency.linearRampToValueAtTime(2750, start + duration);
+          
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(0.2, start + 0.05);
+          gain.gain.setValueAtTime(0.2, start + Math.max(0, duration - 0.1));
+          gain.gain.linearRampToValueAtTime(0, start + duration);
+          
+          osc.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(start); osc2.start(start);
+          osc.stop(start + duration); osc2.stop(start + duration);
+        };
+        
+        toot(now, 0.3);        // Tiupan pendek pertama (Prit!)
+        toot(now + 0.4, 0.8);  // Tiupan panjang kedua (Priiiittt!)
+      },
+      // Suara Geser/Rotasi (Swoosh/Sweep)
+      rotation: function() {
+        this.init();
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.3);
+        
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1, this.ctx.currentTime + 0.1);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+        
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.3);
+      },
+      // 2. Suara Pukulan Bola Voli (Hit/Score)
+      ballHit: function() {
+        this.init();
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+      },
+      // 3. Suara Klik Rubrik
+      click: function() {
+        this.init(); this.playTone(600, 'sine', 0.05, 0.1);
+      },
+      // 4. Suara Sukses (Ting!)
+      success: function() {
+        this.init();
+        this.playTone(440, 'sine', 0.1, 0.1); // A4
+        setTimeout(() => this.playTone(554, 'sine', 0.1, 0.1), 100); // C#5
+        setTimeout(() => this.playTone(659, 'sine', 0.2, 0.1), 200); // E5
+      }
+    };
+    // Agar audio context hidup saat pertama klik di halaman
+    document.addEventListener('click', () => SoundFX.init(), {once:true});
+
+    // ==========================================
+    // FIREBASE CONFIGURATION
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyAhp6Tjl...",
+      authDomain: "asesmen-autentik-bola-voli.firebaseapp.com",
+      databaseURL: "https://asesmen-autentik-bola-voli-default-rtdb.asia-southeast1.firebasedatabase.app", // <--- TAMBAHKAN BARIS INI
+      projectId: "asesmen-autentik-bola-voli",
+      storageBucket: "asesmen-autentik-bola-voli.firebasestorage.app",
+      messagingSenderId: "577262...",
+      appId: "1:577262..."
+    };
+    
+    let dbRef = null;
+    if (firebaseConfig.apiKey !== "ISI_API_KEY_ANDA") {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        dbRef = firebase.database().ref();
+      } catch (err) {
+        alert("Firebase Error: " + err.message + "\n\nPastikan Anda sudah menyalin 'databaseURL' ke dalam firebaseConfig.");
+      }
+    }
+  </script>
+
+  <!-- VIEW 1: SETUP -->
+  <div id="setupView" class="container" style="padding-top: 30px;">
+    <h2><i class="fas fa-volleyball-ball"></i> ASESMEN AUTENTIK BOLA VOLI</h2>
+    
+    <button class="btn-secondary btn-cloud" id="btnUploadCloud" onclick="uploadToCloud()" style="display:none;">
+      <i class="fas fa-cloud-upload-alt"></i> Upload <span id="syncCount">0</span> Pertandingan ke Cloud
+    </button>
+
+    <div class="card">
+      <div class="form-group" style="margin-top: 5px;">
+        <label>Nama Spreadsheet (File Target)</label>
+        <input type="text" id="sheetName" placeholder="Pertandingan Voli X-A" value="Penilaian Voli X-A">
+      </div>
+      <button class="btn-primary" style="background: #0284c7; margin-top: 10px;" onclick="SoundFX.click(); openDatabaseModal();">
+        <i class="fas fa-database"></i> Database Murid (Firebase)
+      </button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-secondary" style="flex:1;" onclick="SoundFX.click(); openClassStatus();">
+          <i class="fas fa-clipboard-list"></i> Status Absen
+        </button>
+        <button class="btn-secondary" style="flex:1;" onclick="SoundFX.click(); openCriteriaEditor();">
+          <i class="fas fa-cog"></i> Rubrik
+        </button>
+      </div>
+    </div>
+
+    <!-- KOLAM PEMAIN (ROSTER) UNTUK RAPID-FIRE -->
+    <div class="roster-pool" id="rosterPool" style="display: none;">
+      <div class="roster-title">
+        <span style="display:flex; align-items:center; gap:10px;">
+          <i class="fas fa-users"></i> PILIH KELAS: 
+          <select id="classSelector" onchange="loadSelectedClass()" style="padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-weight:bold; color:var(--primary); outline:none; cursor:pointer; min-width: 150px;"></select>
+        </span>
+        <button onclick="clearRoster()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:0.8rem;"><i class="fas fa-times"></i> Tutup</button>
+      </div>
+      <div class="roster-subtitle">Pilih kotak posisi di bawah, lalu TAP nama di sini untuk mengisi otomatis.</div>
+      <div class="chip-container" id="rosterChips"></div>
+    </div>
+
+    <!-- PEMAIN -->
+    <div class="setup-grid">
+      <div class="team-setup">
+        <h3>TIM A</h3>
+        <input type="text" id="teamAName" placeholder="Nama Tim A" style="margin-bottom:10px;" value="Tim A">
+        <div class="pos-input"><span>Pos 1</span><input type="text" id="in-A-p1" class="player-input"></div>
+        <div class="pos-input"><span>Pos 2</span><input type="text" id="in-A-p2" class="player-input"></div>
+        <div class="pos-input"><span>Pos 3</span><input type="text" id="in-A-p3" class="player-input"></div>
+        <div class="pos-input"><span>Pos 4</span><input type="text" id="in-A-p4" class="player-input"></div>
+        <div class="pos-input"><span>Pos 5</span><input type="text" id="in-A-p5" class="player-input"></div>
+        <div class="pos-input"><span>Pos 6</span><input type="text" id="in-A-p6" class="player-input"></div>
+      </div>
+      
+      <div class="team-setup">
+        <h3>TIM B</h3>
+        <input type="text" id="teamBName" placeholder="Nama Tim B" style="margin-bottom:10px;" value="Tim B">
+        <div class="pos-input"><span>Pos 1</span><input type="text" id="in-B-p1" class="player-input"></div>
+        <div class="pos-input"><span>Pos 2</span><input type="text" id="in-B-p2" class="player-input"></div>
+        <div class="pos-input"><span>Pos 3</span><input type="text" id="in-B-p3" class="player-input"></div>
+        <div class="pos-input"><span>Pos 4</span><input type="text" id="in-B-p4" class="player-input"></div>
+        <div class="pos-input"><span>Pos 5</span><input type="text" id="in-B-p5" class="player-input"></div>
+        <div class="pos-input"><span>Pos 6</span><input type="text" id="in-B-p6" class="player-input"></div>
+      </div>
+    </div>
+
+    <!-- PERANGKAT PERTANDINGAN -->
+    <div class="card" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
+      <h3 style="text-align: center; font-size: 0.95rem; margin: 0 0 10px 0; color: #475569;">PERANGKAT PERTANDINGAN</h3>
+      <div class="setup-grid" style="margin-bottom:0;">
+        <div class="pos-input"><span>Wasit Utama</span><input type="text" id="in-O-W1" class="player-input"></div>
+        <div class="pos-input"><span>Wasit 2 (Net)</span><input type="text" id="in-O-W2" class="player-input"></div>
+        <div class="pos-input"><span>Hakim Garis 1</span><input type="text" id="in-O-HG1" class="player-input"></div>
+        <div class="pos-input"><span>Hakim Garis 2</span><input type="text" id="in-O-HG2" class="player-input"></div>
+        <div class="pos-input"><span>Hakim Garis 3</span><input type="text" id="in-O-HG3" class="player-input"></div>
+        <div class="pos-input"><span>Hakim Garis 4</span><input type="text" id="in-O-HG4" class="player-input"></div>
+        <div class="pos-input" style="grid-column: 1 / -1;"><span>Pencatat Skor</span><input type="text" id="in-O-Scorer" class="player-input"></div>
+        <div class="pos-input"><span>Pelatih Tim A</span><input type="text" id="in-O-PelatihA" class="player-input"></div>
+        <div class="pos-input"><span>Pelatih Tim B</span><input type="text" id="in-O-PelatihB" class="player-input"></div>
+        <div class="pos-input"><span>Komentator</span><input type="text" id="in-O-Komentator" class="player-input"></div>
+        <div class="pos-input"><span>Tim Medis</span><input type="text" id="in-O-Medis" class="player-input"></div>
+      </div>
+    </div>
+
+    <button class="btn-danger" style="margin-top:10px; width: 100%;" onclick="resetAllPositions()">
+      <i class="fas fa-trash-alt"></i> KOSONGKAN SEMUA POSISI
+    </button>
+    <button class="btn-primary" style="margin-top:10px;" onclick="startAssessment()">
+      <i class="fas fa-whistle"></i> MULAI PERTANDINGAN
+    </button>
+  </div>
+
+  <!-- VIEW 2: LIVE ASSESSMENT -->
+  <div id="assessmentView" style="display:none;">
+    <div class="scoreboard">
+      <div class="team-score"><div class="name"><span id="sbNameA">TIM A</span> <span class="serve-indicator" id="serveA">🏐</span></div><div class="score-controls"><button class="score-btn" onclick="changeScore('A', -1)">-</button><div class="score-display" id="scoreA">0</div><button class="score-btn" onclick="changeScore('A', 1)">+</button></div></div>
+      <div class="score-divider">:</div>
+      <div class="team-score"><div class="name"><span id="sbNameB">TIM B</span> <span class="serve-indicator" id="serveB">🏐</span></div><div class="score-controls"><button class="score-btn" onclick="changeScore('B', -1)">-</button><div class="score-display" id="scoreB">0</div><button class="score-btn" onclick="changeScore('B', 1)">+</button></div></div>
+    </div>
+
+    <div class="container">
+      <div class="brand-text">BOLA VOLI SMANDACIS</div>
+      <div class="court-live-wrapper">
+        <button class="btn-rotate rotate-top" onclick="rotateTeam('B')"><i class="fas fa-redo"></i></button>
+        <button class="btn-rotate rotate-bot" onclick="rotateTeam('A')"><i class="fas fa-redo"></i></button>
+        <div class="court-live">
+          <button style="position:absolute; top:10px; left:10px; z-index:20; background:rgba(255,255,255,0.9); border:none; padding:8px 12px; border-radius:8px; font-weight:bold; color:var(--primary); cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onclick="SoundFX.click(); document.getElementById('manualOverlay').classList.add('active'); document.getElementById('manualMenu').classList.add('active');"><i class="fas fa-cog"></i> Manual</button>
+          <button style="position:absolute; top:10px; right:10px; z-index:20; background:rgba(255,255,255,0.9); border:none; padding:8px 12px; border-radius:8px; font-weight:bold; color:var(--primary); cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.2);" onclick="SoundFX.click(); openAddRoleModal();"><i class="fas fa-plus"></i> Peran</button>
+          <div class="court-inner" id="courtInnerBox">
+            <div class="net-marker"></div>
+            <div class="half-court top"><div class="court-label" id="labelTop">TIM B</div><div class="attack-line-top"></div></div>
+            <div class="half-court bot"><div class="court-label" id="labelBot">TIM A</div><div class="attack-line-bot"></div></div>
+            <div id="courtNodes"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fab-container">
+        <button class="btn-save-all" id="btnSubmitAll" onclick="saveToOfflineStorage()">
+          <i class="fas fa-save"></i> SIMPAN PERTANDINGAN (OFFLINE)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITOR KRITERIA -->
+  <div class="bottom-sheet-overlay" id="editorOverlay" onclick="closeCriteriaEditor()"></div>
+  <div class="editor-modal" id="criteriaEditor">
+    <h3 style="margin-top:0; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">Kriteria Dinamis</h3>
+    <div class="tab-container">
+      <button class="tab-btn active" id="tabPemain" onclick="SoundFX.click(); switchEditorTab('player');">Pemain</button>
+      <button class="tab-btn" id="tabPerangkat" onclick="SoundFX.click(); switchEditorTab('official');">Perangkat</button>
+    </div>
+    <div class="editor-content" id="editorContent"></div>
+    
+    <button class="btn-secondary" style="margin-bottom: 10px; background: #e0e7ff; color: var(--primary);" onclick="SoundFX.click(); addNewCriteria();">
+      <i class="fas fa-plus"></i> Tambah Kriteria Baru
+    </button>
+    <button class="btn-primary" onclick="SoundFX.success(); saveCriteriaEditor();">Simpan Perubahan</button>
+  </div>
+
+  <!-- MODAL STATUS KELAS -->
+  <div class="bottom-sheet-overlay" id="statusOverlay" onclick="closeClassStatus()"></div>
+  <div class="editor-modal" id="statusModal" style="height: 70vh;">
+    <h3 style="margin-top:0; border-bottom:1px solid #e2e8f0; padding-bottom:10px;"><i class="fas fa-clipboard-list"></i> Status Absen Penilaian</h3>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top:0;">Nama-nama ini diambil dari Data Murid. Jika hijau, artinya nilainya sudah tersimpan di memori (offline).</p>
+    <div class="editor-content status-list" id="statusListContent"></div>
+    <button class="btn-primary" onclick="SoundFX.click(); closeClassStatus();">Tutup</button>
+  </div>
+
+  <!-- BOTTOM SHEET (SCORING) -->
+  <div class="bottom-sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="scoringSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title">
+        <span id="sheetStudentName">Nama Siswa</span>
+        <span id="sheetRoleLabel" class="sheet-subtitle">Peran</span>
+      </div>
+      <div style="display:flex; gap:5px;">
+        <button class="btn-substitute" id="btnSubstitute" onclick="substitutePlayer()"><i class="fas fa-exchange-alt"></i> Substitusi</button>
+        <button class="btn-substitute" id="btnRemoveOfficial" style="background:var(--danger); display:none;" onclick="removeOfficial()"><i class="fas fa-trash"></i> Hapus</button>
+      </div>
+    </div>
+    <div id="criteriaListUI"></div>
+    <div class="card" style="margin-top:15px; background:#f8fafc; padding:10px;">
+      <label style="font-size:0.8rem;">Catatan Khusus / Insiden (Opsional)</label>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button class="btn-secondary" style="margin-top:0; flex:1;" id="btnBadge-star" onclick="toggleBadge('star')">⭐ Inisiatif</button>
+        <button class="btn-secondary" style="margin-top:0; flex:1;" id="btnBadge-yellow" onclick="toggleBadge('yellow')">🟨 K. Kuning</button>
+        <button class="btn-secondary" style="margin-top:0; flex:1;" id="btnBadge-red" onclick="toggleBadge('red')">🟥 K. Merah</button>
+      </div>
+      <textarea id="sheetNotes" placeholder="Ketik catatan tambahan di sini..." style="width:100%; border:1px solid #cbd5e1; border-radius:5px; padding:8px; font-size:0.8rem; box-sizing:border-box; min-height: 50px;"></textarea>
+    </div>
+    <button class="btn-primary" style="margin-top: 10px; background:#1e293b;" onclick="closeSheet()">Selesai (Tutup)</button>
+  </div>
+
+  <div class="custom-tooltip" id="customTooltip"></div>
+  <div class="toast" id="toast">Berhasil!</div>
+
+  <!-- MODAL TINDAKAN MANUAL -->
+  <div class="bottom-sheet-overlay" id="manualOverlay" onclick="closeManualMenu()"></div>
+  <div class="bottom-sheet" id="manualMenu">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">Tindakan Manual / Set 2</div></div>
+    <button class="btn-secondary" onclick="SoundFX.click(); rotateTeam('A');"><i class="fas fa-redo"></i> Rotasi Tim A (Maju)</button>
+    <button class="btn-secondary" onclick="SoundFX.click(); rotateTeamUndo('A');"><i class="fas fa-undo"></i> Undo Rotasi Tim A (Mundur)</button>
+    <button class="btn-secondary" onclick="SoundFX.click(); rotateTeam('B');"><i class="fas fa-redo"></i> Rotasi Tim B (Maju)</button>
+    <button class="btn-secondary" onclick="SoundFX.click(); rotateTeamUndo('B');"><i class="fas fa-undo"></i> Undo Rotasi Tim B (Mundur)</button>
+    <hr style="border:0; border-top:1px solid #e2e8f0; margin:15px 0;">
+    <button class="btn-secondary" onclick="SoundFX.click(); toggleCourtSide();"><i class="fas fa-exchange-alt"></i> Tukar Lapangan Sisi Visual</button>
+    <button class="btn-secondary" onclick="SoundFX.click(); resetScore();"><i class="fas fa-eraser"></i> Setel Ulang Skor (0-0)</button>
+    <button class="btn-primary" style="margin-top:15px;" onclick="SoundFX.click(); beginSetTwo();"><i class="fas fa-users-cog"></i> GANTI FORMASI / MULAI SET 2</button>
+  </div>
+
+  <!-- MODAL SUBSTITUSI -->
+  <div class="bottom-sheet-overlay" id="subOverlay" onclick="closeSubModal()"></div>
+  <div class="bottom-sheet" id="subModal">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">Substitusi Pemain</div></div>
+    <label>Nama Pemain Pengganti (Baru):</label>
+    <select id="subSelectStudent" style="width:100%; padding:10px; border:2px solid #e2e8f0; border-radius:8px; margin-bottom:15px; font-family:inherit;"></select>
+    <button class="btn-primary" onclick="confirmSubstitute()">Gantikan Pemain</button>
+  </div>
+
+  <!-- MODAL TAMBAH PERAN MASSAL -->
+  <div class="bottom-sheet-overlay" id="addRoleOverlay" onclick="closeAddRoleModal()"></div>
+  <div class="bottom-sheet" id="addRoleModal">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title">Tambah Perangkat (Massal)</div></div>
+    <p style="font-size: 0.8rem; color: #64748b; margin-top:0;">Pilih nama murid untuk peran yang ingin ditambahkan. Kosongkan jika tidak perlu.</p>
+    <div class="setup-grid" id="massAddRoleGrid" style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;">
+      <!-- Akan diisi otomatis oleh JavaScript -->
+    </div>
+    <button class="btn-primary" onclick="confirmAddRole()">Tambahkan Semua Peran</button>
+  </div>
+
+  <!-- MODAL DATABASE MURID (FIREBASE) -->
+  <div class="bottom-sheet-overlay" id="dbOverlay" onclick="closeDatabaseModal()"></div>
+  <div class="bottom-sheet" id="dbModal">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header"><div class="sheet-title"><i class="fas fa-database"></i> Database Murid (Hybrid)</div></div>
+    
+    <div class="tab-container" style="margin-bottom: 15px;">
+      <button class="tab-btn active" id="tabDbCloud" onclick="SoundFX.click(); switchDbTab('cloud');">Tarik dari Cloud</button>
+      <button class="tab-btn" id="tabDbManual" onclick="SoundFX.click(); switchDbTab('manual');">Input Manual / Push</button>
+    </div>
+
+    <!-- Tab 1: Ambil dari Firebase -->
+    <div id="dbCloudSection">
+      <label>Nama Kelas di Firebase:</label>
+      <input type="text" id="cloudClassName" placeholder="Cth: Kelas X-A" style="margin-bottom:10px;">
+      <button class="btn-primary" style="background:#0284c7;" onclick="fetchFromFirebase()">
+        <i class="fas fa-cloud-download-alt"></i> Tarik Data (Load ke Roster)
+      </button>
+      <p style="font-size: 0.75rem; color: #64748b; margin-top: 10px; line-height: 1.4;">
+        *Data yang ditarik akan disimpan ke <strong>Local Storage</strong> untuk menjaga agar tetap aman jika koneksi terputus saat pertandingan.
+      </p>
+    </div>
+
+    <!-- Tab 2: Input Manual & Push -->
+    <div id="dbManualSection" style="display:none;">
+      <label>Nama Kelas (Untuk Disimpan):</label>
+      <input type="text" id="manualClassName" placeholder="Cth: Kelas X-A" style="margin-bottom:10px;">
+      
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+        <label style="margin:0;">Daftar Nama Murid (Copy-Paste / CSV):</label>
+        <button class="btn-secondary" style="margin:0; padding:4px 8px; font-size:0.75rem;" onclick="document.getElementById('csvFileInput').click()">
+          <i class="fas fa-file-csv"></i> Upload CSV
+        </button>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="handleCSVUpload(event)">
+      </div>
+      
+      <textarea id="manualStudentList" placeholder="Andi Darmawan&#10;Budi Santoso&#10;Cici Pertiwi" style="width:100%; border:2px solid #e2e8f0; border-radius:8px; padding:10px; font-size:0.85rem; height:150px; box-sizing:border-box; font-family:inherit; margin-bottom:10px;"></textarea>
+      
+      <div style="display:flex; gap:10px;">
+        <button class="btn-secondary" style="flex:1; margin-top:0;" onclick="saveToLocalRoster()">
+          <i class="fas fa-hdd"></i> Pakai Lokal
+        </button>
+        <button id="btnPushFirebase" class="btn-primary" style="flex:1; margin-top:0; background:#059669;" onclick="pushToFirebase()">
+          <i class="fas fa-cloud-upload-alt"></i> Push Firebase
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // AUDIO UNLOCKER (Khusus HP / Mobile)
+    // ==========================================
+    function unlockAudio() {
+      if(SoundFX.ctx && SoundFX.ctx.state === 'suspended') SoundFX.ctx.resume();
+      else if(!SoundFX.ctx) SoundFX.init();
+    }
+    document.body.addEventListener('touchstart', unlockAudio, { once: true });
+    document.body.addEventListener('click', unlockAudio, { once: true });
+
+    // ==========================================
+    // DATABASE MURID & RAPID-FIRE ASSIGNMENT
+    // ==========================================
+    let currentRoster = [];
+    let activePlayerInput = null;
+
+    function openDatabaseModal() { document.getElementById('dbOverlay').classList.add('active'); document.getElementById('dbModal').classList.add('active'); }
+    function closeDatabaseModal() { document.getElementById('dbOverlay').classList.remove('active'); document.getElementById('dbModal').classList.remove('active'); }
+    function switchDbTab(tab) {
+      document.getElementById('tabDbCloud').classList.toggle('active', tab === 'cloud');
+      document.getElementById('tabDbManual').classList.toggle('active', tab === 'manual');
+      document.getElementById('dbCloudSection').style.display = tab === 'cloud' ? 'block' : 'none';
+      document.getElementById('dbManualSection').style.display = tab === 'manual' ? 'block' : 'none';
+    }
+
+    let savedClasses = {}; // Object untuk menyimpan daftar kelas-kelas (Kunci: Nama Kelas, Value: Array Murid)
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const inputs = document.querySelectorAll('.player-input');
+      inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+          inputs.forEach(i => i.classList.remove('active-input'));
+          this.classList.add('active-input');
+          activePlayerInput = this;
+        });
+        input.addEventListener('input', function() { checkUsedChips(); });
+      });
+      
+      // ==========================================
+      // 📂 DATABASE MURID PERMANEN (BAWAAN APLIKASI)
+      // Tambahkan nama-nama murid Anda di sini agar langsung muncul saat dibuka di HP
+      // ==========================================
+      const DATABASE_BAWAAN = {
+        "Contoh Kelas SMANDACIS": [
+          "M. Hilmi", "Putri", "Raia", "Ryza", "Maysa", "Resna", "Alfath", "Fitriany", 
+          "Febby", "Kevin", "Indah", "Az", "Kyailla", "Nazmee", "Nazwa", "Aulia", 
+          "Azka", "Adam", "Ajeng", "Akbar", "Ahmad", "Rendi", "Risvi"
+        ]
+      };
+
+      // Ambil seluruh kelas dari Local Storage dan gabungkan dengan Database Bawaan
+      const localData = JSON.parse(localStorage.getItem('savedClasses') || '{}');
+      savedClasses = { ...DATABASE_BAWAAN, ...localData };
+      
+      // Migrasi data lama jika ada (dari versi sebelumnya yang hanya simpan 1 kelas)
+      const oldRoster = JSON.parse(localStorage.getItem('savedRoster') || '[]');
+      const oldClassName = localStorage.getItem('savedRosterClass');
+      if (oldRoster.length > 0 && oldClassName && !savedClasses[oldClassName]) {
+        savedClasses[oldClassName] = oldRoster;
+        localStorage.setItem('savedClasses', JSON.stringify(savedClasses));
+        localStorage.removeItem('savedRoster'); // Hapus yang lama
+      }
+      
+      populateClassDropdown();
+      
+      // Tampilkan kontainer roster jika ada kelas yang tersimpan
+      if (Object.keys(savedClasses).length > 0) {
+        document.getElementById('rosterPool').style.display = 'block';
+      }
+      
+      // Jika ada kelas terakhir yang dibuka, atau pilih kelas pertama secara default
+      let activeClass = oldClassName;
+      if (!activeClass && Object.keys(savedClasses).length > 0) {
+        activeClass = Object.keys(savedClasses)[0];
+      }
+
+      if(activeClass && savedClasses[activeClass]) {
+        document.getElementById('classSelector').value = activeClass;
+        renderRosterPool(savedClasses[activeClass], activeClass);
+        document.getElementById('sheetName').value = `Penilaian ${activeClass}`;
+      } else {
+        document.getElementById('classSelector').value = "";
+        document.getElementById('rosterChips').innerHTML = '';
+      }
+    });
+
+    function populateClassDropdown() {
+      const select = document.getElementById('classSelector');
+      select.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
+      for (const className in savedClasses) {
+        const opt = document.createElement('option');
+        opt.value = className;
+        opt.innerText = className;
+        select.appendChild(opt);
+      }
+    }
+
+    function loadSelectedClass() {
+      const className = document.getElementById('classSelector').value;
+      if (className && savedClasses[className]) {
+        localStorage.setItem('savedRosterClass', className);
+        renderRosterPool(savedClasses[className], className);
+        document.getElementById('sheetName').value = `Penilaian ${className}`;
+      } else {
+        document.getElementById('rosterChips').innerHTML = '';
+      }
+    }
+
+    function renderRosterPool(studentList, className) {
+      currentRoster = studentList;
+      const container = document.getElementById('rosterChips');
+      container.innerHTML = '';
+      
+      studentList.forEach(name => {
+        if(!name.trim()) return;
+        const chip = document.createElement('div');
+        chip.className = 'student-chip';
+        chip.innerText = name.trim();
+        chip.dataset.name = name.trim();
+        chip.onclick = () => handleChipClick(chip, name.trim());
+        container.appendChild(chip);
+      });
+      
+      document.getElementById('rosterPool').style.display = 'block';
+      checkUsedChips();
+    }
+
+    function handleChipClick(chip, name) {
+      SoundFX.click();
+      if(chip.classList.contains('used')) return;
+      
+      if(activePlayerInput) {
+        activePlayerInput.value = name;
+        chip.classList.add('used');
+        
+        const allInputs = Array.from(document.querySelectorAll('.player-input'));
+        const currentIndex = allInputs.indexOf(activePlayerInput);
+        
+        let nextInput = null;
+        for(let i = currentIndex + 1; i < allInputs.length; i++) {
+          if(allInputs[i].value === "") { nextInput = allInputs[i]; break; }
+        }
+        
+        if(nextInput) { nextInput.focus({ preventScroll: true }); } 
+        else { activePlayerInput.blur(); activePlayerInput.classList.remove('active-input'); activePlayerInput = null; }
+        
+        checkUsedChips();
+      } else {
+        showToast("Pilih kotak posisi di bawah terlebih dahulu!");
+      }
+    }
+
+    function checkUsedChips() {
+      const allInputs = Array.from(document.querySelectorAll('.player-input'));
+      const usedNames = allInputs.map(input => input.value.trim().toLowerCase());
+      
+      const chips = document.querySelectorAll('.student-chip');
+      chips.forEach(chip => {
+        if(usedNames.includes(chip.dataset.name.toLowerCase())) { chip.classList.add('used'); }
+        else { chip.classList.remove('used'); }
+      });
+    }
+
+    function clearRoster() { document.getElementById('rosterPool').style.display = 'none'; }
+
+    function saveToLocalRoster() {
+      const listStr = document.getElementById('manualStudentList').value;
+      const className = document.getElementById('manualClassName').value || 'Kelas Kustom';
+      if(!listStr.trim()) return alert("Daftar murid kosong!");
+      
+      const names = listStr.split('\n').filter(n => n.trim() !== '');
+      
+      savedClasses[className] = names;
+      localStorage.setItem('savedClasses', JSON.stringify(savedClasses));
+      localStorage.setItem('savedRosterClass', className);
+      
+      populateClassDropdown();
+      document.getElementById('classSelector').value = className;
+      
+      renderRosterPool(names, className);
+      closeDatabaseModal();
+      showToast("Kelas Tersimpan secara Offline!");
+      SoundFX.success();
+    }
+
+    function fetchFromFirebase() {
+      const className = document.getElementById('cloudClassName').value.trim();
+      if(!className) return alert("Masukkan nama kelas!");
+      if(!dbRef) return alert("Firebase Config belum diatur di script html!");
+      
+      const btn = document.querySelector('#dbCloudSection button');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menarik...';
+      
+      dbRef.child('classes/' + className + '/students').once('value').then((snapshot) => {
+        btn.innerHTML = originalText;
+        if(snapshot.exists()) {
+          const names = snapshot.val();
+          
+          savedClasses[className] = names;
+          localStorage.setItem('savedClasses', JSON.stringify(savedClasses));
+          localStorage.setItem('savedRosterClass', className);
+          
+          populateClassDropdown();
+          document.getElementById('classSelector').value = className;
+          
+          renderRosterPool(names, className);
+          closeDatabaseModal();
+          showToast(`Berhasil menarik ${names.length} murid!`);
+          SoundFX.success();
+        } else {
+          alert("Data kelas tidak ditemukan.");
+        }
+      }).catch(err => {
+        btn.innerHTML = originalText;
+        alert("Gagal: " + err.message);
+      });
+    }
+
+    async function pushToFirebase() {
+      if(!dbRef) return alert("Firebase Config belum diatur di script html!");
+      
+      const className = document.getElementById('manualClassName').value.trim();
+      const listStr = document.getElementById('manualStudentList').value;
+      if(!className || !listStr.trim()) return alert("Nama kelas dan daftar murid wajib diisi!");
+      
+      const btn = document.getElementById('btnPushFirebase');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Push...';
+      
+      try {
+        if (className.startsWith("Multi-Kelas")) {
+          // Push semua kelas di savedClasses
+          const keys = Object.keys(savedClasses);
+          if(keys.length === 0) throw new Error("Tidak ada data kelas untuk di-push");
+          for (const k of keys) {
+            await dbRef.child('classes/' + k + '/students').set(savedClasses[k]);
+          }
+          showToast(`Berhasil Push ${keys.length} kelas ke Firebase!`);
+        } else {
+          // Push 1 kelas (Manual)
+          const names = listStr.split('\n').filter(n => n.trim() !== '');
+          await dbRef.child('classes/' + className + '/students').set(names);
+          savedClasses[className] = names;
+          showToast(`Berhasil Push ${names.length} data ke Firebase!`);
+        }
+        
+        localStorage.setItem('savedClasses', JSON.stringify(savedClasses));
+        populateClassDropdown();
+        
+        closeDatabaseModal();
+        SoundFX.success();
+      } catch (err) {
+        alert("Gagal Push: " + err.message);
+      } finally {
+        btn.innerHTML = originalText;
+      }
+    }
+
+    let criteriaPlayer = JSON.parse(localStorage.getItem('critPlayer')) || [
+      { id: "P1", name: "Keterampilan Gerak", desc1: "Melakukan dengan banyak kesalahan.", desc2: "Cukup bisa walau kurang konsisten.", desc3: "Menerapkan dengan akurasi baik.", desc4: "Akurasi tinggi dan postur sempurna." },
+      { id: "P2", name: "Taktik & Strategi", desc1: "Bermain tanpa strategi.", desc2: "Mulai paham tapi eksekusi keliru.", desc3: "Mampu menempatkan bola.", desc4: "Sangat efektif mencari celah." },
+      { id: "P3", name: "Karakter (Pancasila)", desc1: "Individualis / tidak sportif.", desc2: "Kurang aktif kolaborasi.", desc3: "Sportif dan kerja sama.", desc4: "Proaktif, sportif, regulasi emosi baik." },
+      { id: "P4", name: "Peraturan Voli", desc1: "Tidak paham rotasi.", desc2: "Sering salah rotasi.", desc3: "Paham dengan sedikit panduan.", desc4: "Menguasai penuh tanpa kesalahan." }
+    ];
+
+    let criteriaOfficial = JSON.parse(localStorage.getItem('critOfficial')) || [
+      { id: "O1", name: "Penguasaan Aturan", desc1: "Banyak salah putusan.", desc2: "Paham tapi ragu.", desc3: "Bisa memutuskan in/out.", desc4: "Menerapkan seluruh aturan sempurna." },
+      { id: "O2", name: "Ketegasan Keputusan", desc1: "Selalu ragu.", desc2: "Cukup tegas.", desc3: "Tegas meniup peluit.", desc4: "Sangat objektif dan independen." },
+      { id: "O3", name: "Fokus & Tanggung Jawab", desc1: "Sering lengah.", desc2: "Cukup fokus.", desc3: "Bertanggung jawab.", desc4: "Fokus tinggi dari awal hingga akhir." }
+    ];
+
+    const scoreLabels = ["Berkembang", "Layak", "Cakap", "Mahir"];
+    let allParticipants = []; let benchedParticipants = []; let activeNodeId = null; 
+    let scoreTeamA = 0; let scoreTeamB = 0; let nameTeamA = "Tim A"; let nameTeamB = "Tim B";
+    let currentServe = null;
+    let currentEditorTab = 'player';
+    
+    let savedMatches = JSON.parse(localStorage.getItem('savedMatches') || '[]');
+    updateCloudButton();
+
+    function updateCloudButton() {
+      const btn = document.getElementById('btnUploadCloud');
+      const count = document.getElementById('syncCount');
+      if(savedMatches.length > 0) { btn.style.display = 'flex'; count.innerText = savedMatches.length; } 
+      else { btn.style.display = 'none'; }
+    }
+
+    function openCriteriaEditor() { document.getElementById('editorOverlay').classList.add('active'); document.getElementById('criteriaEditor').classList.add('active'); renderEditor(); }
+    function closeCriteriaEditor() { document.getElementById('editorOverlay').classList.remove('active'); document.getElementById('criteriaEditor').classList.remove('active'); }
+    function switchEditorTab(tab) { currentEditorTab = tab; document.getElementById('tabPemain').classList.toggle('active', tab === 'player'); document.getElementById('tabPerangkat').classList.toggle('active', tab === 'official'); renderEditor(); }
+    function renderEditor() {
+      const arr = currentEditorTab === 'player' ? criteriaPlayer : criteriaOfficial;
+      let html = '';
+      arr.forEach((c, idx) => {
+        html += `<div class="editor-group" id="eg-${c.id}">
+            <button class="btn-remove-crit" onclick="SoundFX.click(); removeCriteria('${c.id}')"><i class="fas fa-trash"></i></button>
+            <label>Judul Kriteria ${idx+1}</label>
+            <input type="text" id="ed-name-${c.id}" value="${c.name}" style="width:100%" placeholder="Nama Kriteria">
+            <label style="margin-top:8px;">Deskripsi 1</label><textarea id="ed-d1-${c.id}">${c.desc1}</textarea>
+            <label>Deskripsi 2</label><textarea id="ed-d2-${c.id}">${c.desc2}</textarea>
+            <label>Deskripsi 3</label><textarea id="ed-d3-${c.id}">${c.desc3}</textarea>
+            <label>Deskripsi 4</label><textarea id="ed-d4-${c.id}">${c.desc4}</textarea>
+          </div>`;
+      });
+      document.getElementById('editorContent').innerHTML = html;
+    }
+    
+    function addNewCriteria() {
+      const arr = currentEditorTab === 'player' ? criteriaPlayer : criteriaOfficial;
+      const newId = 'C' + Math.random().toString(36).substr(2, 5);
+      arr.push({ id: newId, name: 'Kriteria Baru', desc1: '', desc2: '', desc3: '', desc4: '' });
+      renderEditor();
+    }
+    
+    function removeCriteria(id) {
+      if(confirm('Hapus kriteria ini?')) {
+        if(currentEditorTab === 'player') criteriaPlayer = criteriaPlayer.filter(x => x.id !== id);
+        else criteriaOfficial = criteriaOfficial.filter(x => x.id !== id);
+        renderEditor();
+      }
+    }
+
+    function saveCriteriaEditor() {
+      criteriaPlayer.forEach(c => { const n = document.getElementById(`ed-name-${c.id}`); if(n) { c.name = n.value; c.desc1 = document.getElementById(`ed-d1-${c.id}`).value; c.desc2 = document.getElementById(`ed-d2-${c.id}`).value; c.desc3 = document.getElementById(`ed-d3-${c.id}`).value; c.desc4 = document.getElementById(`ed-d4-${c.id}`).value; } });
+      criteriaOfficial.forEach(c => { const n = document.getElementById(`ed-name-${c.id}`); if(n) { c.name = n.value; c.desc1 = document.getElementById(`ed-d1-${c.id}`).value; c.desc2 = document.getElementById(`ed-d2-${c.id}`).value; c.desc3 = document.getElementById(`ed-d3-${c.id}`).value; c.desc4 = document.getElementById(`ed-d4-${c.id}`).value; } });
+      localStorage.setItem('critPlayer', JSON.stringify(criteriaPlayer)); localStorage.setItem('critOfficial', JSON.stringify(criteriaOfficial));
+      showToast("Kriteria Tersimpan (Lokal)!"); closeCriteriaEditor();
+    }
+
+    function handleCSVUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split(/\r?\n/);
+        
+        let startIndex = 0;
+        let nameColIdx = -1;
+        let classColIdx = -1;
+        
+        if (rows.length > 0) {
+          const headerCols = rows[0].split(/[,;]/).map(c => c.trim().toLowerCase().replace(/^["']|["']$/g, ''));
+          nameColIdx = headerCols.findIndex(col => col.includes('nama') || col.includes('name'));
+          classColIdx = headerCols.findIndex(col => col.includes('kelas') || col.includes('class') || col.includes('rombel'));
+          
+          if (nameColIdx !== -1 || classColIdx !== -1) {
+            startIndex = 1; // Lewati header
+          }
+        }
+        
+        let parsedClasses = {};
+        let singleClassNames = [];
+        
+        for(let i = startIndex; i < rows.length; i++) {
+          const row = rows[i].trim();
+          if(!row) continue;
+          
+          const cols = row.split(/[,;]/);
+          let name = "";
+          let className = "";
+          
+          // 1. Ekstrak Nama
+          if (nameColIdx !== -1 && cols.length > nameColIdx) {
+            name = cols[nameColIdx].trim();
+          } else {
+            for(let j=0; j<cols.length; j++) {
+              let val = cols[j].trim().replace(/^["']|["']$/g, '');
+              if(isNaN(val) && val.length > 3 && j !== classColIdx) {
+                 name = val; break;
+              }
+            }
+            if(!name && cols.length > 0) name = cols[0].trim();
+          }
+          name = name.replace(/^["']|["']$/g, '');
+          
+          // 2. Ekstrak Kelas
+          if (classColIdx !== -1 && cols.length > classColIdx) {
+            className = cols[classColIdx].trim().replace(/^["']|["']$/g, '');
+          }
+          
+          if(name) {
+             if (className) {
+                if (!parsedClasses[className]) parsedClasses[className] = [];
+                parsedClasses[className].push(name);
+             } else if (classColIdx !== -1) {
+                if (!parsedClasses["Tanpa Kelas"]) parsedClasses["Tanpa Kelas"] = [];
+                parsedClasses["Tanpa Kelas"].push(name);
+             } else {
+                singleClassNames.push(name);
+             }
+          }
+        }
+        
+        const parsedKeys = Object.keys(parsedClasses);
+        
+        if (parsedKeys.length > 0) {
+          // BATCH IMPORT MULTIPLE CLASSES
+          let totalStudents = 0;
+          parsedKeys.forEach(k => {
+             savedClasses[k] = parsedClasses[k];
+             totalStudents += parsedClasses[k].length;
+          });
+          
+          localStorage.setItem('savedClasses', JSON.stringify(savedClasses));
+          populateClassDropdown();
+          
+          document.getElementById('rosterPool').style.display = 'block';
+          document.getElementById('classSelector').value = "";
+          document.getElementById('rosterChips').innerHTML = '';
+          
+          // Jangan tutup modal, biarkan pengguna klik Push Firebase
+          document.getElementById('manualClassName').value = `Multi-Kelas (${parsedKeys.length} kelas)`;
+          document.getElementById('manualStudentList').value = "Berhasil mengimpor kelas:\n" + parsedKeys.join('\n') + "\n\nSilakan klik 'Push Firebase' untuk menyimpan semua data ini ke Cloud Anda.";
+
+          showToast(`Berhasil mengimpor ${parsedKeys.length} kelas dengan total ${totalStudents} murid!`);
+          SoundFX.success();
+          
+        } else if(singleClassNames.length > 0) {
+          // SINGLE CLASS FALLBACK
+          const textarea = document.getElementById('manualStudentList');
+          textarea.value = singleClassNames.join('\n');
+          
+          const classNameInput = document.getElementById('manualClassName');
+          if (!classNameInput.value || classNameInput.value === 'Kelas Kustom') {
+            classNameInput.value = file.name.replace(/\.[^/.]+$/, "");
+          }
+          
+          showToast(`Berhasil membaca ${singleClassNames.length} nama dari CSV!`);
+          SoundFX.success();
+        } else {
+          alert('Tidak menemukan data nama yang valid di file CSV.');
+        }
+      };
+      reader.onerror = function() { alert('Gagal membaca file CSV.'); };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function openClassStatus() {
+      document.getElementById('statusOverlay').classList.add('active'); document.getElementById('statusModal').classList.add('active');
+      let assessedNames = new Set();
+      savedMatches.forEach(match => { match.students.forEach(s => assessedNames.add(s.studentName.toLowerCase())); });
+      
+      let html = '';
+      currentRoster.forEach(nm => {
+        const isDone = assessedNames.has(nm.toLowerCase());
+        const icon = isDone ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-times-circle"></i>';
+        const cssClass = isDone ? 'done' : 'wait';
+        html += `<div class="status-item ${cssClass}">${icon} ${nm}</div>`;
+      });
+      document.getElementById('statusListContent').innerHTML = html;
+    }
+    function closeClassStatus() { document.getElementById('statusOverlay').classList.remove('active'); document.getElementById('statusModal').classList.remove('active'); }
+
+    function resetAllPositions() {
+      if(!confirm("Yakin ingin mengosongkan seluruh nama di semua posisi?")) return;
+      document.querySelectorAll('.player-input').forEach(input => input.value = '');
+      checkUsedChips();
+      SoundFX.click();
+      showToast("Semua posisi dikosongkan");
+    }
+
+    function startAssessment() {
+      nameTeamA = document.getElementById('teamAName').value.trim() || 'Tim A'; nameTeamB = document.getElementById('teamBName').value.trim() || 'Tim B';
+      document.getElementById('sbNameA').innerText = nameTeamA; document.getElementById('sbNameB').innerText = nameTeamB;
+
+      allParticipants = []; const posIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
+      posIds.forEach((p, idx) => { const n = document.getElementById('in-A-'+p).value.trim(); if(n) allParticipants.push(createParticipant(`A_${idx}`, n, 'player', nameTeamA, `pos-A_${p}`)); });
+      posIds.forEach((p, idx) => { const n = document.getElementById('in-B-'+p).value.trim(); if(n) allParticipants.push(createParticipant(`B_${idx}`, n, 'player', nameTeamB, `pos-B_${p}`)); });
+      
+      const officials = [
+        { idIn: 'W1', posClass: 'pos-W1', roleName: 'Wasit Utama' }, { idIn: 'W2', posClass: 'pos-W2', roleName: 'Wasit 2' },
+        { idIn: 'HG1', posClass: 'pos-HG1', roleName: 'Hakim Garis 1' }, { idIn: 'HG2', posClass: 'pos-HG2', roleName: 'Hakim Garis 2' },
+        { idIn: 'HG3', posClass: 'pos-HG3', roleName: 'Hakim Garis 3' }, { idIn: 'HG4', posClass: 'pos-HG4', roleName: 'Hakim Garis 4' },
+        { idIn: 'Scorer', posClass: 'pos-Scorer', roleName: 'Pencatat Skor' },
+        { idIn: 'PelatihA', posClass: 'pos-PelatihA', roleName: 'Pelatih Tim A' }, { idIn: 'PelatihB', posClass: 'pos-PelatihB', roleName: 'Pelatih Tim B' },
+        { idIn: 'Komentator', posClass: 'pos-Komentator', roleName: 'Komentator' }, { idIn: 'Medis', posClass: 'pos-Medis', roleName: 'Tim Medis' }
+      ];
+      officials.forEach((off, idx) => { const n = document.getElementById('in-O-'+off.idIn).value.trim(); if(n) allParticipants.push(createParticipant(`O_${idx}`, n, 'official', off.roleName, off.posClass)); });
+
+      if(allParticipants.length === 0) return showToast('Minimal isi 1 anak!');
+
+      const serveInput = prompt(`Siapa yang memegang servis pertama? Ketik 'A' untuk ${nameTeamA} atau 'B' untuk ${nameTeamB}:`, "A");
+      currentServe = (serveInput && serveInput.toUpperCase() === 'B') ? 'B' : 'A';
+      updateServeIndicator();
+
+      SoundFX.whistle(); // BUNYIKAN PELUIT SAAT MULAI PERTANDINGAN
+
+      document.body.classList.add('live-mode');
+      document.getElementById('setupView').style.display = 'none'; 
+      document.getElementById('assessmentView').classList.add('active-flex');
+      
+      buildDOMNodesOnce();
+    }
+
+    function updateServeIndicator() {
+      document.getElementById('serveA').classList.toggle('active', currentServe === 'A');
+      document.getElementById('serveB').classList.toggle('active', currentServe === 'B');
+    }
+
+    function createParticipant(idStr, fullName, roleType, teamOrRoleLabel, initialPosClass) { 
+      let parts = fullName.trim().split(' ');
+      let short = parts[0];
+      if (parts.length > 1 && ['muhammad', 'muhamad', 'mochamad', 'mohamad', 'mohammad', 'muchamad', 'm', 'm.'].includes(parts[0].toLowerCase())) {
+        short = 'M. ' + parts[1];
+      }
+      return { id: 'node_' + idStr, name: fullName, shortName: short, role: roleType, team: teamOrRoleLabel, currentPosClass: initialPosClass, scores: {}, badges: [], notes: '' }; 
+    }
+
+    function buildDOMNodesOnce() {
+      const container = document.getElementById('courtNodes'); let html = '';
+      allParticipants.forEach(p => {
+        const baseClass = p.role === 'official' ? 'player-node official' : (p.currentPosClass.includes('pos-B') ? 'player-node teamB' : 'player-node teamA');
+        const critLength = p.role === 'player' ? criteriaPlayer.length : criteriaOfficial.length;
+        html += `<div id="${p.id}" class="${baseClass} ${p.currentPosClass}" onclick="SoundFX.click(); openScoringSheet('${p.id}')">
+            <div class="name">${p.shortName}</div><div class="progress" id="prog-${p.id}">0/${critLength}</div>
+          </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function updateDOMPositions() { allParticipants.forEach(p => { const el = document.getElementById(p.id); if(el) el.className = el.className.replace(/pos-[\w_]+/g, '').trim() + ' ' + p.currentPosClass; }); }
+
+    function rotateTeam(teamPrefix) {
+      SoundFX.rotation(); // BUNYIKAN EFEK SWEEP SAAT ROTASI
+      const rotSequence = [`pos-${teamPrefix}_p1`, `pos-${teamPrefix}_p6`, `pos-${teamPrefix}_p5`, `pos-${teamPrefix}_p4`, `pos-${teamPrefix}_p3`, `pos-${teamPrefix}_p2`];
+      let playersInRotation = []; rotSequence.forEach(posClass => playersInRotation.push(allParticipants.find(p => p.currentPosClass === posClass)));
+
+      const newPosAssignments = [];
+      newPosAssignments[1] = playersInRotation[0]; newPosAssignments[2] = playersInRotation[1]; newPosAssignments[3] = playersInRotation[2];
+      newPosAssignments[4] = playersInRotation[3]; newPosAssignments[5] = playersInRotation[4]; newPosAssignments[0] = playersInRotation[5];
+
+      for(let i=0; i<6; i++) { if(newPosAssignments[i]) newPosAssignments[i].currentPosClass = rotSequence[i]; }
+      updateDOMPositions();
+    }
+
+    function changeScore(team, amount) {
+      if(amount > 0) SoundFX.ballHit(); // BUNYIKAN BOLA SAAT TAMBAH SKOR
+      if(team === 'A') { 
+        scoreTeamA = Math.max(0, scoreTeamA + amount); document.getElementById('scoreA').innerText = scoreTeamA; 
+        if(amount > 0 && currentServe === 'B') { currentServe = 'A'; rotateTeam('A'); updateServeIndicator(); }
+      } else { 
+        scoreTeamB = Math.max(0, scoreTeamB + amount); document.getElementById('scoreB').innerText = scoreTeamB; 
+        if(amount > 0 && currentServe === 'A') { currentServe = 'B'; rotateTeam('B'); updateServeIndicator(); }
+      }
+      checkWinCondition();
+    }
+
+    function checkWinCondition() {
+      if ((scoreTeamA >= 25 && scoreTeamA - scoreTeamB >= 2) || (scoreTeamB >= 25 && scoreTeamB - scoreTeamA >= 2)) {
+        SoundFX.success(); startConfetti(); showToast("SET SELESAI!");
+      }
+    }
+
+    // --- RUBRIK & SHEET ---
+    let tooltipTimeout;
+    function showRubricTooltip(event, criteriaId, isPlayer) {
+      SoundFX.click();
+      const arr = isPlayer ? criteriaPlayer : criteriaOfficial; const c = arr.find(x => x.id === criteriaId);
+      const tt = document.getElementById('customTooltip');
+      tt.innerHTML = `<strong>1:</strong> ${c.desc1}<br><br><strong>2:</strong> ${c.desc2}<br><br><strong>3:</strong> ${c.desc3}<br><br><strong>4:</strong> ${c.desc4}`;
+      tt.classList.add('show');
+      clearTimeout(tooltipTimeout); tooltipTimeout = setTimeout(() => tt.classList.remove('show'), 6000); event.stopPropagation();
+    }
+    document.addEventListener('click', () => { document.getElementById('customTooltip').classList.remove('show'); });
+
+    function openScoringSheet(nodeId) {
+      activeNodeId = nodeId; const p = allParticipants.find(x => x.id === nodeId);
+      document.getElementById('sheetStudentName').innerText = p.name; document.getElementById('sheetRoleLabel').innerText = p.role === 'player' ? p.team : p.team; 
+
+      const activeCriteriaList = p.role === 'player' ? criteriaPlayer : criteriaOfficial; let html = '';
+      activeCriteriaList.forEach(c => {
+        let btns = '';
+        for(let i=1; i<=4; i++) {
+          const selected = p.scores[c.id] === i ? 'selected' : '';
+          btns += `<button class="s-btn ${selected}" id="sbtn-${c.id}-${i}" onclick="setScore('${c.id}', ${i}, '${p.role}')">${i}<span>${scoreLabels[i-1]}</span></button>`;
+        }
+        html += `<div class="crit-row"><div class="crit-name">${c.name} <i class="fas fa-info-circle tooltip-icon" onclick="showRubricTooltip(event, '${c.id}', ${p.role === 'player'})"></i></div><div class="score-btns">${btns}</div></div>`;
+      });
+      document.getElementById('criteriaListUI').innerHTML = html;
+      document.getElementById('sheetNotes').value = p.notes;
+      renderBadgesSheet(p);
+      
+      if (p.role === 'official') {
+        document.getElementById('btnSubstitute').style.display = 'inline-block';
+        document.getElementById('btnRemoveOfficial').style.display = 'inline-block';
+      } else {
+        document.getElementById('btnSubstitute').style.display = 'inline-block';
+        document.getElementById('btnRemoveOfficial').style.display = 'none';
+      }
+
+      document.getElementById('sheetOverlay').classList.add('active'); 
+      document.getElementById('scoringSheet').classList.add('active');
+    }
+
+    function toggleBadge(type) {
+      SoundFX.click();
+      const p = allParticipants.find(x => x.id === activeNodeId);
+      if(p.badges.includes(type)) { p.badges = p.badges.filter(b => b !== type); }
+      else { p.badges.push(type); }
+      renderBadgesSheet(p); updateBadgeNode(p);
+    }
+
+    function renderBadgesSheet(p) {
+      document.getElementById('btnBadge-star').style.background = p.badges.includes('star') ? '#fef08a' : '#e2e8f0';
+      document.getElementById('btnBadge-star').style.color = p.badges.includes('star') ? '#b45309' : '#1e293b';
+      document.getElementById('btnBadge-yellow').style.background = p.badges.includes('yellow') ? '#facc15' : '#e2e8f0';
+      document.getElementById('btnBadge-yellow').style.color = p.badges.includes('yellow') ? '#854d0e' : '#1e293b';
+      document.getElementById('btnBadge-red').style.background = p.badges.includes('red') ? '#f87171' : '#e2e8f0';
+      document.getElementById('btnBadge-red').style.color = p.badges.includes('red') ? '#7f1d1d' : '#1e293b';
+    }
+
+    function updateBadgeNode(p) {
+      const el = document.getElementById(p.id);
+      let existing = el.querySelector('.badge-icon'); if(existing) existing.remove();
+      if(p.badges.length > 0) {
+        let iconStr = p.badges.includes('red') ? '🟥' : (p.badges.includes('yellow') ? '🟨' : '⭐');
+        el.innerHTML += `<div class="badge-icon">${iconStr}</div>`;
+      }
+    }
+
+    function closeSheet() { 
+      SoundFX.click(); 
+      const p = allParticipants.find(x => x.id === activeNodeId);
+      if(p) p.notes = document.getElementById('sheetNotes').value;
+      document.getElementById('sheetOverlay').classList.remove('active'); document.getElementById('scoringSheet').classList.remove('active'); activeNodeId = null; 
+    }
+
+    function setScore(criteriaId, score, role) {
+      SoundFX.click(); // BUNYIKAN KLIK SAAT MENILAI
+      const p = allParticipants.find(x => x.id === activeNodeId); p.scores[criteriaId] = score;
+      for(let i=1; i<=4; i++) { const btn = document.getElementById(`sbtn-${criteriaId}-${i}`); if(btn) btn.classList.remove('selected'); }
+      document.getElementById(`sbtn-${criteriaId}-${score}`).classList.add('selected');
+
+      let totalAssessed = 0; 
+      const activeCriteriaList = role === 'player' ? criteriaPlayer : criteriaOfficial;
+      activeCriteriaList.forEach(c => { if(p.scores[c.id] > 0) totalAssessed++; });
+      const progEl = document.getElementById(`prog-${activeNodeId}`);
+      if(progEl) { 
+        progEl.innerText = `${totalAssessed}/${activeCriteriaList.length}`; 
+        if(totalAssessed === activeCriteriaList.length) { progEl.parentElement.classList.add('complete'); }
+        else { progEl.parentElement.classList.remove('complete'); }
+      }
+    }
+
+    function substitutePlayer() {
+      document.getElementById('sheetOverlay').classList.remove('active'); document.getElementById('scoringSheet').classList.remove('active');
+      
+      const select = document.getElementById('subSelectStudent');
+      select.innerHTML = '<option value="" disabled selected>Pilih nama murid pengganti...</option>';
+      const activeNames = allParticipants.map(p => p.name);
+      currentRoster.forEach(name => {
+        if(!activeNames.includes(name)) {
+          select.innerHTML += `<option value="${name}">${name}</option>`;
+        }
+      });
+      
+      document.getElementById('subOverlay').classList.add('active'); 
+      document.getElementById('subModal').classList.add('active');
+    }
+
+    function closeSubModal() { document.getElementById('subOverlay').classList.remove('active'); document.getElementById('subModal').classList.remove('active'); }
+
+    function removeOfficial() {
+      if(!confirm("Hapus perangkat ini dari lapangan?\nData nilai yang sudah diisi akan tetap tersimpan di riwayat kelas.")) return;
+      
+      const pIndex = allParticipants.findIndex(x => x.id === activeNodeId);
+      if(pIndex > -1) {
+        const p = allParticipants[pIndex];
+        SoundFX.success(); // Pakai suara sukses
+        benchedParticipants.push(JSON.parse(JSON.stringify(p))); // simpan datanya
+        allParticipants.splice(pIndex, 1);
+        
+        const nodeEl = document.getElementById(p.id);
+        if(nodeEl) nodeEl.remove();
+        
+        closeSheet(); showToast(`Perangkat berhasil dihapus.`);
+        activeNodeId = null;
+      }
+    }
+
+    function confirmSubstitute() {
+      const newName = document.getElementById('subSelectStudent').value;
+      if(!newName) return alert("Pilih nama murid terlebih dahulu!");
+      
+      const p = allParticipants.find(x => x.id === activeNodeId);
+      SoundFX.success(); // BUNYI SUKSES
+      benchedParticipants.push(JSON.parse(JSON.stringify(p))); 
+      p.name = newName; p.shortName = newName.split(' ')[0]; p.scores = {}; p.badges = []; p.notes = '';
+      
+      const nodeEl = document.getElementById(p.id); nodeEl.querySelector('.name').innerText = p.shortName;
+      updateBadgeNode(p);
+      const critLength = p.role === 'player' ? criteriaPlayer.length : criteriaOfficial.length;
+      nodeEl.querySelector('.progress').innerText = `0/${critLength}`; nodeEl.classList.remove('complete');
+      
+      closeSubModal(); showToast(`Substitusi Berhasil.`);
+      activeNodeId = null;
+    }
+
+    // --- MANUAL ACTIONS & SET 2 ---
+    function closeManualMenu() { document.getElementById('manualOverlay').classList.remove('active'); document.getElementById('manualMenu').classList.remove('active'); }
+    
+    function rotateTeamUndo(teamPrefix) {
+      SoundFX.rotation();
+      const rotSequence = [`pos-${teamPrefix}_p1`, `pos-${teamPrefix}_p6`, `pos-${teamPrefix}_p5`, `pos-${teamPrefix}_p4`, `pos-${teamPrefix}_p3`, `pos-${teamPrefix}_p2`];
+      let playersInRotation = []; rotSequence.forEach(posClass => playersInRotation.push(allParticipants.find(p => p.currentPosClass === posClass)));
+
+      const newPosAssignments = [];
+      newPosAssignments[5] = playersInRotation[0]; newPosAssignments[0] = playersInRotation[1]; newPosAssignments[1] = playersInRotation[2];
+      newPosAssignments[2] = playersInRotation[3]; newPosAssignments[3] = playersInRotation[4]; newPosAssignments[4] = playersInRotation[5];
+
+      for(let i=0; i<6; i++) { if(newPosAssignments[i]) newPosAssignments[i].currentPosClass = rotSequence[i]; }
+      updateDOMPositions();
+    }
+
+    let isCourtSwapped = false;
+    function toggleCourtSide() {
+      isCourtSwapped = !isCourtSwapped;
+      document.getElementById('courtInnerBox').classList.toggle('swapped', isCourtSwapped);
+      document.getElementById('labelTop').innerText = isCourtSwapped ? nameTeamA : nameTeamB;
+      document.getElementById('labelBot').innerText = isCourtSwapped ? nameTeamB : nameTeamA;
+      closeManualMenu(); showToast("Lapangan Bertukar!");
+    }
+
+    function resetScore() {
+      if(confirm("Yakin ingin setel ulang skor ke 0-0?")) {
+        scoreTeamA = 0; scoreTeamB = 0;
+        document.getElementById('scoreA').innerText = "0"; document.getElementById('scoreB').innerText = "0";
+        closeManualMenu();
+      }
+    }
+
+    function beginSetTwo() {
+      if(!confirm("Mulai Set 2?\nIni akan mengamankan pemain saat ini ke memori dan mengembalikan Anda ke halaman Pengaturan untuk memilih formasi baru.")) return;
+      
+      SoundFX.success();
+      allParticipants.forEach(p => { benchedParticipants.push(JSON.parse(JSON.stringify(p))); });
+      allParticipants = []; document.getElementById('courtNodes').innerHTML = '';
+      
+      scoreTeamA = 0; scoreTeamB = 0;
+      document.getElementById('scoreA').innerText = "0"; document.getElementById('scoreB').innerText = "0";
+      
+      toggleCourtSide(); closeManualMenu();
+      
+      document.getElementById('assessmentView').style.display = 'none'; 
+      document.getElementById('setupView').style.display = 'block';
+      
+      ['p1','p2','p3','p4','p5','p6'].forEach(p => {
+        document.getElementById('in-A-'+p).value = ''; document.getElementById('in-B-'+p).value = '';
+      });
+      
+      window.scrollTo(0, 0); showToast("Siap untuk Set 2! Silakan atur formasi baru.");
+    }
+
+    // --- TAMBAH PERAN MID-GAME ---
+    function openAddRoleModal() {
+      const grid = document.getElementById('massAddRoleGrid');
+      grid.innerHTML = '';
+      
+      const activeNames = allParticipants.map(p => p.name);
+      let optionsHTML = '<option value="">-- Kosong --</option>';
+      currentRoster.forEach(name => {
+        if(!activeNames.includes(name)) {
+          optionsHTML += `<option value="${name}">${name}</option>`;
+        }
+      });
+      
+      const officials = [
+        { idIn: 'W1', posClass: 'pos-W1', roleName: 'Wasit Utama' }, { idIn: 'W2', posClass: 'pos-W2', roleName: 'Wasit 2' },
+        { idIn: 'HG1', posClass: 'pos-HG1', roleName: 'Hakim Garis 1' }, { idIn: 'HG2', posClass: 'pos-HG2', roleName: 'Hakim Garis 2' },
+        { idIn: 'HG3', posClass: 'pos-HG3', roleName: 'Hakim Garis 3' }, { idIn: 'HG4', posClass: 'pos-HG4', roleName: 'Hakim Garis 4' },
+        { idIn: 'Scorer', posClass: 'pos-Scorer', roleName: 'Pencatat Skor' },
+        { idIn: 'PelatihA', posClass: 'pos-PelatihA', roleName: 'Pelatih Tim A' }, { idIn: 'PelatihB', posClass: 'pos-PelatihB', roleName: 'Pelatih Tim B' },
+        { idIn: 'Komentator', posClass: 'pos-Komentator', roleName: 'Komentator' }, { idIn: 'Medis', posClass: 'pos-Medis', roleName: 'Tim Medis' }
+      ];
+      
+      officials.forEach(off => {
+        const existing = allParticipants.find(p => p.currentPosClass === off.posClass);
+        if(!existing) {
+          grid.innerHTML += `<div class="pos-input"><span>${off.roleName}</span><select data-rolename="${off.roleName}" data-posclass="${off.posClass}" class="mass-add-select" style="width:100%; padding:8px; border:2px solid #e2e8f0; border-radius:8px; font-family:inherit; font-size: 0.9rem;">${optionsHTML}</select></div>`;
+        }
+      });
+      
+      if(grid.innerHTML === '') {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 20px; color: #64748b; font-size:0.9rem;">Semua peran perangkat sudah terisi. Gunakan Substitusi jika ingin mengganti orang.</div>';
+      }
+
+      document.getElementById('addRoleOverlay').classList.add('active'); 
+      document.getElementById('addRoleModal').classList.add('active');
+    }
+    
+    function closeAddRoleModal() { document.getElementById('addRoleOverlay').classList.remove('active'); document.getElementById('addRoleModal').classList.remove('active'); }
+    
+    function confirmAddRole() {
+      const selects = document.querySelectorAll('.mass-add-select');
+      let addedCount = 0;
+      const container = document.getElementById('courtNodes');
+      const baseClass = 'player-node official';
+
+      // Kita buat array nama terpilih untuk mencegah pengisian ganda pada submit yang sama
+      let pickedNames = [];
+
+      selects.forEach(sel => {
+        const newName = sel.value;
+        if(newName) {
+          if(pickedNames.includes(newName)) {
+            alert(`Peringatan: Nama ${newName} dipilih lebih dari satu kali! Hanya peran pertamanya yang akan diproses.`);
+            return;
+          }
+          pickedNames.push(newName);
+          
+          const roleName = sel.getAttribute('data-rolename');
+          const posClass = sel.getAttribute('data-posclass');
+          
+          const newP = createParticipant(`O_new_${Date.now()}_${addedCount}`, newName, 'official', roleName, posClass);
+          allParticipants.push(newP);
+          
+          container.insertAdjacentHTML('beforeend', `<div id="${newP.id}" class="${baseClass} ${newP.currentPosClass}" onclick="SoundFX.click(); openScoringSheet('${newP.id}')">
+            <div class="name">${newP.shortName}</div>
+            <div class="progress" id="prog-${newP.id}">0/${criteriaOfficial.length}</div>
+            <div id="badges-${newP.id}"></div>
+          </div>`);
+          addedCount++;
+        }
+      });
+      
+      if(addedCount > 0) {
+        SoundFX.success();
+        showToast(`${addedCount} Peran berhasil ditambahkan!`);
+      } else {
+        showToast("Tidak ada peran baru yang ditambahkan.");
+      }
+      closeAddRoleModal();
+    }
+
+    function saveToOfflineStorage() {
+      const pass = prompt('Masukkan kata sandi untuk menyimpan data (Default: 123456):');
+      if(pass !== '123456') { alert('Kata sandi salah!'); return; }
+      
+      if(confirm('Simpan pertandingan ini ke Memori HP?')) {
+        SoundFX.success(); // BUNYIKAN SUKSES
+        let payloadStudents = []; const allToSubmit = [...benchedParticipants, ...allParticipants];
+        const criteriaNames = [...criteriaPlayer.map(c => "(Pemain) " + c.name), ...criteriaOfficial.map(c => "(Perangkat) " + c.name)];
+
+        allToSubmit.forEach(p => {
+          let scArr = []; let totalSc = 0;
+          criteriaPlayer.forEach(c => { let s = (p.role === 'player' && p.scores[c.id]) ? p.scores[c.id] : ""; scArr.push(s); if(typeof s === 'number') totalSc += s; });
+          criteriaOfficial.forEach(c => { let s = (p.role === 'official' && p.scores[c.id]) ? p.scores[c.id] : ""; scArr.push(s); if(typeof s === 'number') totalSc += s; });
+          
+          let badgeStr = p.badges.length > 0 ? ` (Lencana: ${p.badges.join(', ')})` : '';
+          let finalNotes = (p.role === 'official' ? 'Perangkat. ' : '') + p.notes + badgeStr;
+          
+          payloadStudents.push({ 
+            studentName: p.name, 
+            teamName: p.team, 
+            scores: scArr, 
+            notes: finalNotes.trim() 
+          });
+        });
+
+        const matchPayload = { 
+          folderId: CONFIG_FOLDER_ID, 
+          sheetName: document.getElementById('sheetName').value.trim() || 'Penilaian Voli', 
+          matchScore: `${nameTeamA}: ${scoreTeamA} - ${nameTeamB}: ${scoreTeamB}`, 
+          criteriaNames: criteriaNames, 
+          playerCriteriaCount: criteriaPlayer.length,
+          officialCriteriaCount: criteriaOfficial.length,
+          students: payloadStudents 
+        };
+        savedMatches.push(matchPayload); localStorage.setItem('savedMatches', JSON.stringify(savedMatches));
+        updateCloudButton(); // Update tampilan tombol Upload Cloud
+        
+        alert(`Berhasil! Ada ${savedMatches.length} pertandingan menunggu di-upload.\n\nSusunan pemain saat ini tetap dipertahankan jika Anda ingin lanjut dengan tim yang sama.`);
+        
+        // Reset Skor Pertandingan
+        scoreTeamA = 0; scoreTeamB = 0;
+        document.getElementById('scoreA').innerText = '0';
+        document.getElementById('scoreB').innerText = '0';
+        
+        // Kembali ke Setup View (Nama pemain di input tetap ada)
+        document.body.classList.remove('live-mode');
+        document.getElementById('setupView').style.display = 'block'; 
+        document.getElementById('assessmentView').classList.remove('active-flex');
+        
+        checkUsedChips();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    async function uploadToCloud() {
+      if(!CONFIG_API_URL) return alert("GAGAL: Anda belum mensetting CONFIG_API_URL di dalam script HTML!");
+      if(savedMatches.length === 0) return alert("Tidak ada data offline yang perlu di-upload.");
+
+      SoundFX.click();
+      const btn = document.getElementById('btnUploadCloud'); btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunggah... Jangan tutup!'; btn.disabled = true;
+
+      let successCount = 0;
+      for(let i=0; i<savedMatches.length; i++) {
+        try {
+          const res = await fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify(savedMatches[i]) });
+          const result = await res.json();
+          if(result.success) successCount++;
+        } catch(err) { console.error("Gagal unggah data ke-" + i, err); }
+      }
+
+      if(successCount === savedMatches.length) {
+        SoundFX.success();
+        localStorage.removeItem('savedMatches');
+        alert(`Luar Biasa! ${successCount} pertandingan berhasil diamankan ke Google Spreadsheet.`);
+        location.reload();
+      } else {
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Coba Lagi (Gagal Sebagian)'; btn.disabled = false;
+        alert(`Hanya ${successCount} dari ${savedMatches.length} yang berhasil. Periksa koneksi internet.`);
+      }
+    }
+
+    function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+  </script>
+</body>
+</html>
