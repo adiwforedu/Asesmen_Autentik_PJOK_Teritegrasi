@@ -1976,7 +1976,7 @@ document.addEventListener('DOMContentLoaded', () => {
         winnerBadge = `<span style="background: #64748b; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 4px;">Hasil Imbang (Seri)</span>`;
       }
     } else {
-      winnerBadge = `<span style="background: #f59e0b; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 4px;"><i class="fa-solid fa-stopwatch"></i> Status: Sedang Berlangsung</span>`;
+      winnerBadge = `<span style="background: #f59e0b; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 3px 8px; border-radius: 4px; display: inline-block; white-space: nowrap;"><i class="fa-solid fa-stopwatch"></i> Status: Sedang Berlangsung</span>`;
     }
 
     // Collect active officials
