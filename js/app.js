@@ -41,7 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
       startersB: [],
       benchB: [],
       officials: {},
-      poolOther: []
+      poolOther: [],
+      courtFlipped: false // flag untuk menukar posisi lapangan Tim A/B
     }
   };
 
@@ -1345,6 +1346,7 @@ document.addEventListener('DOMContentLoaded', () => {
       state.currentLineup.officials['official_b'] = null;
 
       state.currentLineup.poolOther = otherStudents.map(s => s.id);
+      state.currentLineup.courtFlipped = false; // reset posisi lapangan saat berpindah set/kelompok
     }
 
     // Helper to map IDs back to student objects
@@ -1354,6 +1356,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const benchA = state.currentLineup.benchA.map(getStd).filter(Boolean);
     const startersB = state.currentLineup.startersB.map(getStd).filter(Boolean);
     const benchB = state.currentLineup.benchB.map(getStd).filter(Boolean);
+
+    // Sync tombol tukar posisi
+    const btnFlip = document.getElementById('btnFlipCourt');
+    if (btnFlip) {
+      const isFlipped = !!state.currentLineup.courtFlipped;
+      btnFlip.style.background = isFlipped ? '#4f46e5' : '';
+      btnFlip.style.color = isFlipped ? '#ffffff' : '';
+      btnFlip.style.borderColor = isFlipped ? '#4f46e5' : '';
+      btnFlip.title = isFlipped
+        ? 'Posisi Ditukar (Set 2) — Klik untuk kembalikan ke posisi semula'
+        : 'Tukar Posisi Lapangan (untuk Pindah Set)';
+    }
 
     let courtHTML = `<div class="court-container ${courtClass}">`;
 
@@ -1419,9 +1433,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!isSenamMode) {
+      const isFlipped = !!state.currentLineup.courtFlipped;
+      const flipBadge = isFlipped ? ' <span style="font-size:0.6rem; background:#4f46e5; color:#fff; border-radius:4px; padding:1px 5px; margin-left:4px; vertical-align:middle;">TUKAR</span>' : '';
+      // Saat ditukar: Tim A naik ke atas (biru), Tim B turun ke bawah (hijau)
+      const topTeam  = isFlipped ? teamA : teamB;
+      const topColor = isFlipped ? '#10b981' : '#3b82f6';
+      const botTeam  = isFlipped ? teamB : teamA;
+      const botColor = isFlipped ? '#3b82f6' : '#10b981';
       courtHTML += `
-            <div class="team-label team-label-top"><i class="fa-solid fa-users" style="color: #3b82f6;"></i> ${escapeHtml(teamB)}</div>
-            <div class="team-label team-label-bottom"><i class="fa-solid fa-users" style="color: #10b981;"></i> ${escapeHtml(teamA)}</div>
+            <div class="team-label team-label-top"><i class="fa-solid fa-users" style="color: ${topColor};"></i> ${escapeHtml(topTeam)}${flipBadge}</div>
+            <div class="team-label team-label-bottom"><i class="fa-solid fa-users" style="color: ${botColor};"></i> ${escapeHtml(botTeam)}${flipBadge}</div>
         `;
     }
 
@@ -1638,6 +1659,43 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMatchEvidencePrint();
   }
 
+  // -------------------------------------------------------------
+  // FLIP COURT: Tukar Posisi Lapangan Tim A & B
+  // -------------------------------------------------------------
+  window.flipCourtSides = function () {
+    if (!state.currentLineup) return;
+
+    // Swap starter arrays
+    const tmpStarters = state.currentLineup.startersA;
+    state.currentLineup.startersA = state.currentLineup.startersB;
+    state.currentLineup.startersB = tmpStarters;
+
+    // Swap bench arrays
+    const tmpBench = state.currentLineup.benchA;
+    state.currentLineup.benchA = state.currentLineup.benchB;
+    state.currentLineup.benchB = tmpBench;
+
+    // Toggle flag (untuk animasi tombol)
+    state.currentLineup.courtFlipped = !state.currentLineup.courtFlipped;
+
+    // Update tombol
+    const btn = document.getElementById('btnFlipCourt');
+    if (btn) {
+      const isFlipped = state.currentLineup.courtFlipped;
+      btn.style.background = isFlipped ? '#4f46e5' : '';
+      btn.style.color = isFlipped ? '#ffffff' : '';
+      btn.style.borderColor = isFlipped ? '#4f46e5' : '';
+      btn.title = isFlipped
+        ? 'Posisi Ditukar (Set 2) — Klik untuk kembalikan'
+        : 'Tukar Posisi Lapangan (untuk Pindah Set)';
+    }
+
+    renderCourtVisualizer();
+    showToast(state.currentLineup.courtFlipped
+      ? '🔄 Posisi lapangan ditukar! Tim A pindah ke atas untuk Set 2.'
+      : '↩️ Posisi lapangan dikembalikan ke posisi semula.');
+  };
+
   // Global Handler for Player Pin Click
   window.handlePlayerPinClick = function (stdId, e) {
     if (e) {
@@ -1729,6 +1787,13 @@ document.addEventListener('DOMContentLoaded', () => {
     saveState();
     renderMatchScoreboard();
     renderMatchEvidencePrint();
+    // Animasi pop pada kotak skor yang baru diubah
+    const box = document.getElementById(team === 'A' ? 'scoreBoxA' : 'scoreBoxB');
+    if (box) {
+      box.classList.remove('score-pop');
+      void box.offsetWidth; // reflow trigger
+      box.classList.add('score-pop');
+    }
   };
 
   window.setMatchScoreManual = function (team, val) {
@@ -1806,41 +1871,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const elStatus = document.getElementById('selectMatchStatus');
     const elNotes = document.getElementById('inputMatchEvidenceNotes');
 
-    if (elTeamAName) elTeamAName.innerHTML = `<i class="fa-solid fa-users" style="color: #10b981;"></i> ${escapeHtml(teamA)}`;
-    if (elTeamBName) elTeamBName.innerHTML = `<i class="fa-solid fa-users" style="color: #3b82f6;"></i> ${escapeHtml(teamB)}`;
+    const isFlipped = !!(state.currentLineup && state.currentLineup.courtFlipped);
+    const dispA = isFlipped ? teamB : teamA;
+    const dispB = isFlipped ? teamA : teamB;
+    const colorA = isFlipped ? '#3b82f6' : '#10b981';
+    const colorB = isFlipped ? '#10b981' : '#3b82f6';
+
+    if (elTeamAName) elTeamAName.innerHTML = `<i class="fa-solid fa-users" style="color: ${colorA};"></i> ${escapeHtml(dispA)}`;
+    if (elTeamBName) elTeamBName.innerHTML = `<i class="fa-solid fa-users" style="color: ${colorB};"></i> ${escapeHtml(dispB)}`;
     if (elPeriod) elPeriod.value = data.period || '';
     if (elStatus) elStatus.value = data.status || 'ongoing';
     if (elNotes) elNotes.value = data.notes || '';
 
-    const isBasketball = sportKey === 'basket' || sportName.includes('basket');
-
     const scoreAVal = data.scoreA !== undefined ? data.scoreA : 0;
     const scoreBVal = data.scoreB !== undefined ? data.scoreB : 0;
 
-    if (elScoreWrapA) {
-      elScoreWrapA.innerHTML = `
-              <button class="btn-score-ctrl btn-sub" onclick="window.changeMatchScore('A', -1)" title="Kurang 1 poin">-1</button>
-              <input type="number" id="sbScoreA" class="input-score-val" value="${scoreAVal}" min="0" onchange="window.setMatchScoreManual('A', this.value)">
-              <button class="btn-score-ctrl btn-add" onclick="window.changeMatchScore('A', 1)" title="Tambah 1 poin">+1</button>
-              ${isBasketball ? `
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('A', 2)" title="Field Goal 2 poin">+2</button>
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('A', 3)" title="Three Point 3 poin">+3</button>
-              ` : ''}
-          `;
+    // Update score input values
+    const elScoreA = document.getElementById('sbScoreA');
+    const elScoreB = document.getElementById('sbScoreB');
+    if (elScoreA) elScoreA.value = scoreAVal;
+    if (elScoreB) elScoreB.value = scoreBVal;
+
+    // Leading score highlight
+    const boxA = document.getElementById('scoreBoxA');
+    const boxB = document.getElementById('scoreBoxB');
+    if (boxA && boxB) {
+      boxA.classList.toggle('leading', scoreAVal > scoreBVal);
+      boxB.classList.toggle('leading', scoreBVal > scoreAVal);
     }
 
-    if (elScoreWrapB) {
-      elScoreWrapB.innerHTML = `
-              <button class="btn-score-ctrl btn-sub" onclick="window.changeMatchScore('B', -1)" title="Kurang 1 poin">-1</button>
-              <input type="number" id="sbScoreB" class="input-score-val" value="${scoreBVal}" min="0" onchange="window.setMatchScoreManual('B', this.value)">
-              <button class="btn-score-ctrl btn-add" onclick="window.changeMatchScore('B', 1)" title="Tambah 1 poin">+1</button>
-              ${isBasketball ? `
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('B', 2)" title="Field Goal 2 poin">+2</button>
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('B', 3)" title="Three Point 3 poin">+3</button>
-              ` : ''}
-          `;
-    }
+    // Sync serve selector labels
+    renderServeSelector();
   }
+
+  // -------------------------------------------------------------
+  // SERVE SELECTOR: Pilih Tim yang Memulai Servis
+  // -------------------------------------------------------------
+  function renderServeSelector() {
+    const matchKey = getCurrentMatchKey();
+    const serveTeam = (state.matchResults && state.matchResults[matchKey]) ? (state.matchResults[matchKey].firstServe || null) : null;
+    const { teamA, teamB } = getMatchTeamNames();
+    const isFlipped = !!(state.currentLineup && state.currentLineup.courtFlipped);
+    const dispA = isFlipped ? teamB : teamA;
+    const dispB = isFlipped ? teamA : teamB;
+
+    const btnA = document.getElementById('btnServeA');
+    const btnB = document.getElementById('btnServeB');
+    const ballA = document.getElementById('serveBallA');
+    const ballB = document.getElementById('serveBallB');
+    const lblA = document.getElementById('serveALabel');
+    const lblB = document.getElementById('serveBLabel');
+
+    if (lblA) lblA.textContent = dispA;
+    if (lblB) lblB.textContent = dispB;
+
+    if (btnA) btnA.classList.toggle('active-serve', serveTeam === 'A');
+    if (btnB) btnB.classList.toggle('active-serve', serveTeam === 'B');
+    if (ballA) ballA.style.display = serveTeam === 'A' ? 'inline' : 'none';
+    if (ballB) ballB.style.display = serveTeam === 'B' ? 'inline' : 'none';
+  }
+
+  window.setFirstServe = function (team) {
+    const matchKey = getCurrentMatchKey();
+    if (!state.matchResults) state.matchResults = {};
+    if (!state.matchResults[matchKey]) getCurrentMatchData();
+    const cur = state.matchResults[matchKey].firstServe;
+    // Toggle: klik lagi pada tim yang sama → reset
+    state.matchResults[matchKey].firstServe = (cur === team) ? null : team;
+    saveState();
+    renderServeSelector();
+    const label = state.matchResults[matchKey].firstServe;
+    showToast(label
+      ? `🏐 Servis pertama: ${label === 'A' ? 'Tim A' : 'Tim B'}`
+      : 'Pilihan servis dibatalkan.');
+  };
 
   function renderMatchEvidencePrint() {
     const elPrintBox = document.getElementById('matchEvidencePrintBox');
@@ -2768,30 +2872,29 @@ document.addEventListener('DOMContentLoaded', () => {
           const isMatchMode = state.selectedKelompok.startsWith('match:') || (elCourtVisualizerPanel && elCourtVisualizerPanel.style.display !== 'none');
           let updatedCount = 0;
 
-          state.students.forEach(std => {
-            if (state.selectedKelas === 'all' || std.kelas === state.selectedKelas) {
-              let shouldScore = false;
-
-              if (isMatchMode) {
-                const loc = findStudentLocation(std.id);
-                const isStarter = loc && (loc.array === state.currentLineup.startersA || loc.array === state.currentLineup.startersB);
-                const isOfficial = loc && loc.obj === state.currentLineup.officials;
-                const inTargetGroup = (std.kelompok || 'Kelompok 1') === targetGroup;
-
-                if ((isStarter || isOfficial) && inTargetGroup) {
-                  shouldScore = true;
-                }
-              } else {
-                if ((std.kelompok || 'Kelompok 1') === targetGroup) {
-                  shouldScore = true;
-                }
-              }
-
-              if (shouldScore) {
-                std.scores[critId] = val;
-                updatedCount++;
-              }
+          const targetStudents = state.students.filter(std => {
+            if (state.selectedKelas !== 'all' && std.kelas !== state.selectedKelas) return false;
+            
+            if (isMatchMode) {
+              const loc = findStudentLocation(std.id);
+              const isStarter = loc && (loc.array === state.currentLineup.startersA || loc.array === state.currentLineup.startersB);
+              const isOfficial = loc && loc.obj === state.currentLineup.officials;
+              const inTargetGroup = (std.kelompok || 'Kelompok 1') === targetGroup;
+              return (isStarter || isOfficial) && inTargetGroup;
+            } else {
+              return (std.kelompok || 'Kelompok 1') === targetGroup;
             }
+          });
+
+          const isCancel = targetStudents.length > 0 && targetStudents.every(std => std.scores[critId] === val);
+
+          targetStudents.forEach(std => {
+            if (isCancel) {
+              delete std.scores[critId];
+            } else {
+              std.scores[critId] = val;
+            }
+            updatedCount++;
           });
 
           saveState();
@@ -2800,7 +2903,11 @@ document.addEventListener('DOMContentLoaded', () => {
           if (elCourtVisualizerPanel && elCourtVisualizerPanel.style.display !== 'none') {
             renderCourtVisualizer();
           }
-          showToast(`Nilai ${val} berhasil diterapkan serentak ke ${updatedCount} murid di ${targetGroup}!`);
+          if (isCancel) {
+            showToast(`Penilaian cepat dibatalkan (dihapus) serentak untuk ${updatedCount} murid di ${targetGroup}!`);
+          } else {
+            showToast(`Nilai ${val} berhasil diterapkan serentak ke ${updatedCount} murid di ${targetGroup}!`);
+          }
         }
       });
     }

@@ -251,10 +251,15 @@
             <span class="text-muted" style="font-size: 0.8rem;" id="courtClickHint">Klik pin murid untuk menilai
               langsung</span>
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn btn-outline-sm" id="btnToggleManualSub" onclick="window.toggleManualSubMode()"
               style="background-color: #f8fafc;">
               <i class="fa-solid fa-arrows-rotate"></i> Mode Substitusi: OFF
+            </button>
+            <button class="btn btn-outline-sm" id="btnFlipCourt" onclick="window.flipCourtSides()"
+              title="Tukar Posisi Lapangan (untuk Pindah Set)"
+              style="background-color: #f8fafc; transition: all 0.25s ease;">
+              <i class="fa-solid fa-right-left" style="transform: rotate(90deg);"></i> Tukar Posisi
             </button>
             <button class="btn btn-outline-sm" id="btnCloseCourtVisualizer">
               <i class="fa-solid fa-xmark"></i> Tutup Lapangan
@@ -277,18 +282,41 @@
             </div>
           </div>
 
+          <!-- SERVE FIRST SELECTOR -->
+          <div class="serve-selector-bar" id="serveSelectorBar">
+            <span class="serve-label"><i class="fa-solid fa-circle-dot" style="color:#f59e0b;"></i> Servis
+              Pertama:</span>
+            <div class="serve-team-btns">
+              <button class="btn-serve-pick" id="btnServeB" onclick="window.setFirstServe('B')"
+                title="Tim B memulai servis">
+                <span id="serveBallB" class="serve-ball" style="display:none;">🏐</span>
+                <span id="serveBLabel">Tim B</span>
+              </button>
+              <span class="serve-none-text">/ pilih /</span>
+              <button class="btn-serve-pick" id="btnServeA" onclick="window.setFirstServe('A')"
+                title="Tim A memulai servis">
+                <span id="serveBallA" class="serve-ball" style="display:none;">🏐</span>
+                <span id="serveALabel">Tim A</span>
+              </button>
+            </div>
+          </div>
+
           <div class="scoreboard-body">
             <!-- Tim B (Atas) -->
             <div class="team-score-block team-b-block">
               <div class="team-name" id="sbTeamBName"><i class="fa-solid fa-users" style="color: #3b82f6;"></i> Tim B
               </div>
-              <div class="score-display-wrap">
-                <button class="btn-score-ctrl btn-sub" onclick="window.changeMatchScore('B', -1)">-1</button>
-                <input type="number" id="sbScoreB" class="input-score-val" value="0" min="0"
-                  onchange="window.setMatchScoreManual('B', this.value)">
-                <button class="btn-score-ctrl btn-add" onclick="window.changeMatchScore('B', 1)">+1</button>
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('B', 2)">+2</button>
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('B', 3)">+3</button>
+              <div class="score-display-wrap-v2">
+                <button class="btn-score-minus" onclick="window.changeMatchScore('B', -1)" title="Kurangi skor Tim B">
+                  <i class="fa-solid fa-minus"></i>
+                </button>
+                <div class="score-number-box" id="scoreBoxB">
+                  <input type="number" id="sbScoreB" class="input-score-val-v2" value="0" min="0"
+                    onchange="window.setMatchScoreManual('B', this.value)">
+                </div>
+                <button class="btn-score-plus" onclick="window.changeMatchScore('B', 1)" title="Tambah skor Tim B">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
               </div>
             </div>
 
@@ -307,13 +335,17 @@
             <div class="team-score-block team-a-block">
               <div class="team-name" id="sbTeamAName"><i class="fa-solid fa-users" style="color: #10b981;"></i> Tim A
               </div>
-              <div class="score-display-wrap">
-                <button class="btn-score-ctrl btn-sub" onclick="window.changeMatchScore('A', -1)">-1</button>
-                <input type="number" id="sbScoreA" class="input-score-val" value="0" min="0"
-                  onchange="window.setMatchScoreManual('A', this.value)">
-                <button class="btn-score-ctrl btn-add" onclick="window.changeMatchScore('A', 1)">+1</button>
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('A', 2)">+2</button>
-                <button class="btn-score-ctrl btn-add-lg" onclick="window.changeMatchScore('A', 3)">+3</button>
+              <div class="score-display-wrap-v2">
+                <button class="btn-score-minus" onclick="window.changeMatchScore('A', -1)" title="Kurangi skor Tim A">
+                  <i class="fa-solid fa-minus"></i>
+                </button>
+                <div class="score-number-box" id="scoreBoxA">
+                  <input type="number" id="sbScoreA" class="input-score-val-v2" value="0" min="0"
+                    onchange="window.setMatchScoreManual('A', this.value)">
+                </div>
+                <button class="btn-score-plus" onclick="window.changeMatchScore('A', 1)" title="Tambah skor Tim A">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -344,132 +376,130 @@
           </div>
         </div>
       </div>
-  </div>
-  </div>
 
-  <!-- Old Modal Select Official Removed -->
-  <div class="group-batch-panel no-print" id="groupBatchPanel" style="display: none;">
-    <div class="batch-title">
-      <i class="fa-solid fa-bolt" style="color: #f59e0b; font-size: 1.05rem;"></i>
-      <strong>Penilaian Cepat Serentak Tim (<span id="dispBatchGroupName">Kelompok 1</span>):</strong>
-      <span class="text-muted" style="font-size: 0.8rem;">Beri nilai awal seluruh anggota tim sekaligus dengan
-        1-klik, lalu sesuaikan nilai individual di tabel jika ada murid yang tampil lebih menonjol.</span>
-    </div>
-    <div class="batch-criteria-grid" id="batchCriteriaGrid">
-      <!-- Dynamic Batch Criteria Buttons inserted by JS -->
-    </div>
-  </div>
-
-  <!-- TABLE CONTAINER -->
-  <div class="table-responsive">
-    <table class="assessment-table" id="assessmentTable">
-      <thead>
-        <tr id="tableHeaderRow">
-          <th style="width: 38px; text-align: center;">No.</th>
-          <th style="min-width: 175px; text-align: center;" class="sticky-col">Nama Murid</th>
-          <th style="width: 75px; text-align: center;">Kelas</th>
-          <!-- Dynamic Criteria Columns inserted by JS -->
-          <th style="width: 55px; text-align: center;">Skor</th>
-          <th style="width: 125px; min-width: 125px; text-align: center;">Keterangan Interval</th>
-          <th class="no-print" style="width: 90px; text-align: center;">Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="tableBodySiswa">
-        <!-- Dynamic Student Rows inserted by JS -->
-      </tbody>
-    </table>
-  </div>
-  </section>
-
-  <!-- INTERVAL SKOR & DESKRIPSI RUBRIK (INFORMASI KURIKULUM) -->
-  <div class="grid-2col">
-    <!-- INTERVAL SKOR CARD -->
-    <section class="card info-card">
-      <h3><i class="fa-solid fa-chart-line"></i> Keterangan Interval Skor Dinamis</h3>
-      <div class="interval-list" id="intervalContainer">
-        <!-- Populated dynamically -->
+      <!-- Old Modal Select Official Removed -->
+      <div class="group-batch-panel no-print" id="groupBatchPanel" style="display: none;">
+        <div class="batch-title">
+          <i class="fa-solid fa-bolt" style="color: #f59e0b; font-size: 1.05rem;"></i>
+          <strong>Penilaian Cepat Serentak Tim (<span id="dispBatchGroupName">Kelompok 1</span>):</strong>
+          <span class="text-muted" style="font-size: 0.8rem;">Beri nilai awal seluruh anggota tim sekaligus dengan
+            1-klik, lalu sesuaikan nilai individual di tabel jika ada murid yang tampil lebih menonjol.</span>
+        </div>
+        <div class="batch-criteria-grid" id="batchCriteriaGrid">
+          <!-- Dynamic Batch Criteria Buttons inserted by JS -->
+        </div>
       </div>
-      <div class="interval-note">
-        <small><i class="fa-solid fa-info-circle"></i> Kategori interval dikalkulasi secara proporsional berdasarkan
-          jumlah kriteria aktif (Skor Maksimal = <span id="dispSkorMax">20</span>).</small>
+
+      <!-- TABLE CONTAINER -->
+      <div class="table-responsive">
+        <table class="assessment-table" id="assessmentTable">
+          <thead>
+            <tr id="tableHeaderRow">
+              <th style="width: 38px; text-align: center;">No.</th>
+              <th style="min-width: 175px; text-align: center;" class="sticky-col">Nama Murid</th>
+              <th style="width: 75px; text-align: center;">Kelas</th>
+              <!-- Dynamic Criteria Columns inserted by JS -->
+              <th style="width: 55px; text-align: center;">Skor</th>
+              <th style="width: 125px; min-width: 125px; text-align: center;">Keterangan Interval</th>
+              <th class="no-print" style="width: 90px; text-align: center;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tableBodySiswa">
+            <!-- Dynamic Student Rows inserted by JS -->
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <!-- PANDUAN INDIKATOR LEVEL CARD -->
-    <section class="card info-card">
-      <h3><i class="fa-solid fa-book-bookmark"></i> Indikator Capaian Keterampilan</h3>
-      <div class="indicator-desc-list">
-        <div class="desc-item item-mahir">
-          <strong>Mahir (Skor 4):</strong> Menunjukkan penguasaan teknik yang sangat baik, konsisten, efisien, dan
-          mampu menerapkan variasi/strategi secara adaptif dalam permainan.
+    <!-- INTERVAL SKOR & DESKRIPSI RUBRIK (INFORMASI KURIKULUM) -->
+    <div class="grid-2col">
+      <!-- INTERVAL SKOR CARD -->
+      <section class="card info-card">
+        <h3><i class="fa-solid fa-chart-line"></i> Keterangan Interval Skor Dinamis</h3>
+        <div class="interval-list" id="intervalContainer">
+          <!-- Populated dynamically -->
         </div>
-        <div class="desc-item item-cakap">
-          <strong>Cakap (Skor 3):</strong> Menunjukkan penguasaan teknik yang baik dan lancar, namun masih terdapat
-          sedikit kekurangan pada konsistensi atau variasi gerakan.
+        <div class="interval-note">
+          <small><i class="fa-solid fa-info-circle"></i> Kategori interval dikalkulasi secara proporsional berdasarkan
+            jumlah kriteria aktif (Skor Maksimal = <span id="dispSkorMax">20</span>).</small>
         </div>
-        <div class="desc-item item-layak">
-          <strong>Layak (Skor 2):</strong> Menunjukkan penguasaan teknik yang cukup, namun masih sering melakukan
-          kesalahan dasar dan membutuhkan pengarahan.
+      </section>
+
+      <!-- PANDUAN INDIKATOR LEVEL CARD -->
+      <section class="card info-card">
+        <h3><i class="fa-solid fa-book-bookmark"></i> Indikator Capaian Keterampilan</h3>
+        <div class="indicator-desc-list">
+          <div class="desc-item item-mahir">
+            <strong>Mahir (Skor 4):</strong> Menunjukkan penguasaan teknik yang sangat baik, konsisten, efisien, dan
+            mampu menerapkan variasi/strategi secara adaptif dalam permainan.
+          </div>
+          <div class="desc-item item-cakap">
+            <strong>Cakap (Skor 3):</strong> Menunjukkan penguasaan teknik yang baik dan lancar, namun masih terdapat
+            sedikit kekurangan pada konsistensi atau variasi gerakan.
+          </div>
+          <div class="desc-item item-layak">
+            <strong>Layak (Skor 2):</strong> Menunjukkan penguasaan teknik yang cukup, namun masih sering melakukan
+            kesalahan dasar dan membutuhkan pengarahan.
+          </div>
+          <div class="desc-item item-berkembang">
+            <strong>Berkembang (Skor 1):</strong> Belum menunjukkan penguasaan teknik dasar yang baik dan memerlukan
+            bimbingan intensif dari guru/tutor sebaya.
+          </div>
         </div>
-        <div class="desc-item item-berkembang">
-          <strong>Berkembang (Skor 1):</strong> Belum menunjukkan penguasaan teknik dasar yang baik dan memerlukan
-          bimbingan intensif dari guru/tutor sebaya.
+      </section>
+    </div>
+
+    <!-- DIFERENSIASI & CATATAN UNPAN BALIK PEDAGOGIS -->
+    <section class="card diferensiasi-card">
+      <h3><i class="fa-solid fa-lightbulb"></i> Pembelajaran Berdiferensiasi, Umpan Balik & Catatan Guru</h3>
+      <div class="diferensiasi-content">
+        <div class="dif-box">
+          <h4><i class="fa-solid fa-wand-magic-sparkles"></i> Kreativitas & Keberagaman yang Dikembangkan</h4>
+          <ul>
+            <li>Kemampuan beradaptasi dalam situasi permainan realistik / pertandingan simulasi.</li>
+            <li>Pengembangan strategi kerja sama tim dan komunikasi efektif saat unjuk kerja.</li>
+            <li>Penerapan teknik yang inovatif dalam kombinasi gerak spesifik PJOK.</li>
+            <li>Menjunjung tinggi nilai sportivitas, etika, kejujuran, dan inklusivitas.</li>
+          </ul>
+        </div>
+        <div class="dif-box">
+          <h4><i class="fa-solid fa-comments"></i> Strategi Umpan Balik &amp; Tindak Lanjut</h4>
+          <p>Guru memberikan umpan balik secara langsung (<em>formatif langsung</em>) setelah unjuk kerja. Siswa
+            kategori <strong>Berkembang</strong> dan <strong>Layak</strong> diberikan program pendampingan &amp; latihan
+            terfokus, sedangkan siswa <strong>Mahir</strong> dan <strong>Cakap</strong> diberdayakan sebagai <em>Tutor
+              Sebaya</em> dan diberikan tantangan pengayaan strategi permainan.</p>
         </div>
       </div>
     </section>
-  </div>
 
-  <!-- DIFERENSIASI & CATATAN UNPAN BALIK PEDAGOGIS -->
-  <section class="card diferensiasi-card">
-    <h3><i class="fa-solid fa-lightbulb"></i> Pembelajaran Berdiferensiasi, Umpan Balik & Catatan Guru</h3>
-    <div class="diferensiasi-content">
-      <div class="dif-box">
-        <h4><i class="fa-solid fa-wand-magic-sparkles"></i> Kreativitas & Keberagaman yang Dikembangkan</h4>
-        <ul>
-          <li>Kemampuan beradaptasi dalam situasi permainan realistik / pertandingan simulasi.</li>
-          <li>Pengembangan strategi kerja sama tim dan komunikasi efektif saat unjuk kerja.</li>
-          <li>Penerapan teknik yang inovatif dalam kombinasi gerak spesifik PJOK.</li>
-          <li>Menjunjung tinggi nilai sportivitas, etika, kejujuran, dan inklusivitas.</li>
-        </ul>
+    <!-- DOKUMEN BERITA ACARA & EVIDEN PERTANDINGAN ANTAR KELOMPOK (PRINT & DISPLAY) -->
+    <section class="card match-evidence-section" id="matchEvidencePrintBox" style="display: none; margin-bottom: 20px;">
+      <div class="evidence-box-header">
+        <h3><i class="fa-solid fa-file-signature"></i> Berita Acara &amp; Eviden Hasil Pertandingan Antar Kelompok</h3>
+        <span class="evidence-badge" id="printEvidenceSportBadge">Pertandingan</span>
       </div>
-      <div class="dif-box">
-        <h4><i class="fa-solid fa-comments"></i> Strategi Umpan Balik &amp; Tindak Lanjut</h4>
-        <p>Guru memberikan umpan balik secara langsung (<em>formatif langsung</em>) setelah unjuk kerja. Siswa
-          kategori <strong>Berkembang</strong> dan <strong>Layak</strong> diberikan program pendampingan &amp; latihan
-          terfokus, sedangkan siswa <strong>Mahir</strong> dan <strong>Cakap</strong> diberdayakan sebagai <em>Tutor
-            Sebaya</em> dan diberikan tantangan pengayaan strategi permainan.</p>
+      <div class="evidence-box-content" id="printEvidenceContent">
+        <!-- Injected dynamically by JS -->
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- DOKUMEN BERITA ACARA & EVIDEN PERTANDINGAN ANTAR KELOMPOK (PRINT & DISPLAY) -->
-  <section class="card match-evidence-section" id="matchEvidencePrintBox" style="display: none; margin-bottom: 20px;">
-    <div class="evidence-box-header">
-      <h3><i class="fa-solid fa-file-signature"></i> Berita Acara &amp; Eviden Hasil Pertandingan Antar Kelompok</h3>
-      <span class="evidence-badge" id="printEvidenceSportBadge">Pertandingan</span>
-    </div>
-    <div class="evidence-box-content" id="printEvidenceContent">
-      <!-- Injected dynamically by JS -->
-    </div>
-  </section>
-
-  <!-- LEMBAR TANDA TANGAN LEGITIMASI DINAMIS (DISPLAY & PRINT) -->
-  <section class="card signature-section">
-    <div class="sig-box">
-      <p>Mengetahui,</p>
-      <p id="dispJabatanKepsekSig">Plt. Kepala SMAN 2 Ciamis</p>
-      <div class="sig-space"></div>
-      <p class="sig-name" id="dispKepsekSig">Dadan Ramdan, S.Ag., M.Pd.</p>
-      <p class="sig-nip" id="dispNipKepsekSig">NIP. 19710325 199702 1 002</p>
-    </div>
-    <div class="sig-box">
-      <p><span id="dispKotaSig">Ciamis</span>, <span id="dispTanggalSig">26 Agustus 2026</span></p>
-      <p>Guru PJOK</p>
-      <div class="sig-space"></div>
-      <p class="sig-name" id="dispGuruSig">Afriadi Nugraha Sulaeman, S.Pd.</p>
-      <p class="sig-nip" id="dispNipGuruSig">NIP. 19780512 200501 1 003</p>
-    </div>
-  </section>
+    <!-- LEMBAR TANDA TANGAN LEGITIMASI DINAMIS (DISPLAY & PRINT) -->
+    <section class="card signature-section">
+      <div class="sig-box">
+        <p>Mengetahui,</p>
+        <p id="dispJabatanKepsekSig">Plt. Kepala SMAN 2 Ciamis</p>
+        <div class="sig-space"></div>
+        <p class="sig-name" id="dispKepsekSig">Dadan Ramdan, S.Ag., M.Pd.</p>
+        <p class="sig-nip" id="dispNipKepsekSig">NIP. 19710325 199702 1 002</p>
+      </div>
+      <div class="sig-box">
+        <p><span id="dispKotaSig">Ciamis</span>, <span id="dispTanggalSig">26 Agustus 2026</span></p>
+        <p>Guru PJOK</p>
+        <div class="sig-space"></div>
+        <p class="sig-name" id="dispGuruSig">Afriadi Nugraha Sulaeman, S.Pd.</p>
+        <p class="sig-nip" id="dispNipGuruSig">NIP. 19780512 200501 1 003</p>
+      </div>
+    </section>
 
   </div>
 
@@ -648,8 +678,10 @@
         <div class="form-group" style="margin-bottom: 15px;">
           <label style="font-weight:bold;">Metode Impor:</label>
           <div style="display: flex; gap: 15px; margin-top: 5px;">
-             <label style="display:flex; align-items:center; gap:5px;"><input type="radio" name="importMethod" value="replace" checked> Timpa Kelas (Hapus yg lama)</label>
-             <label style="display:flex; align-items:center; gap:5px;"><input type="radio" name="importMethod" value="append"> Tambahkan (Append)</label>
+            <label style="display:flex; align-items:center; gap:5px;"><input type="radio" name="importMethod"
+                value="replace" checked> Timpa Kelas (Hapus yg lama)</label>
+            <label style="display:flex; align-items:center; gap:5px;"><input type="radio" name="importMethod"
+                value="append"> Tambahkan (Append)</label>
           </div>
         </div>
 
@@ -708,7 +740,8 @@
         style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #ffffff;">
         <div>
           <h3 id="dispSelectOfficialRoleTitle" style="font-size: 1.15rem; font-weight: 800; color: #1e293b; margin: 0;">
-            <i class="fa-solid fa-user-shield" style="color: #0284c7;"></i> Penugasan Perangkat Pertandingan</h3>
+            <i class="fa-solid fa-user-shield" style="color: #0284c7;"></i> Penugasan Perangkat Pertandingan
+          </h3>
           <small id="dispSelectOfficialRoleSub" style="color: #64748b; font-size: 0.78rem;">Pilih murid dari kelompok
             netral (tidak sedang bertanding)</small>
         </div>
@@ -738,7 +771,8 @@
     <div class="modal-card" style="max-width: 480px;">
       <div class="modal-header">
         <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Bagi Kelompok Otomatis</h3>
-        <button class="modal-close" id="btnCloseAutoDivideModal" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        <button class="modal-close" id="btnCloseAutoDivideModal" aria-label="Tutup"><i
+            class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-body" style="padding: 20px 0 8px;">
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 18px;">
@@ -748,34 +782,48 @@
 
         <!-- Metode Pembagian -->
         <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-          <label style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.2s;" id="labelDivideBySize">
-            <input type="radio" name="divideMethod" value="by_size" id="radioDivideBySize" checked style="margin-top: 3px; accent-color: var(--primary);">
+          <label
+            style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+            id="labelDivideBySize">
+            <input type="radio" name="divideMethod" value="by_size" id="radioDivideBySize" checked
+              style="margin-top: 3px; accent-color: var(--primary);">
             <div>
               <div style="font-weight: 700; font-size: 0.92rem;">Berdasarkan jumlah anggota per kelompok</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Contoh: isi 6 → sistem otomatis membuat Kelompok 1, 2, 3… masing-masing 6 orang</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Contoh: isi 6 → sistem otomatis
+                membuat Kelompok 1, 2, 3… masing-masing 6 orang</div>
             </div>
           </label>
-          <label style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.2s;" id="labelDivideByCount">
-            <input type="radio" name="divideMethod" value="by_count" id="radioDivideByCount" style="margin-top: 3px; accent-color: var(--primary);">
+          <label
+            style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.2s;"
+            id="labelDivideByCount">
+            <input type="radio" name="divideMethod" value="by_count" id="radioDivideByCount"
+              style="margin-top: 3px; accent-color: var(--primary);">
             <div>
               <div style="font-weight: 700; font-size: 0.92rem;">Berdasarkan jumlah kelompok</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Contoh: isi 4 → sistem membagi murid merata ke dalam 4 kelompok</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Contoh: isi 4 → sistem membagi
+                murid merata ke dalam 4 kelompok</div>
             </div>
           </label>
         </div>
 
         <!-- Input Angka -->
         <div class="form-group">
-          <label id="labelDivideInput" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Jumlah anggota per kelompok:</label>
-          <input type="number" id="inputDivideValue" value="6" min="1" max="100" class="editable-input" style="width: 100%; font-size: 1.1rem; font-weight: 700; text-align: center;">
+          <label id="labelDivideInput"
+            style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Jumlah anggota per
+            kelompok:</label>
+          <input type="number" id="inputDivideValue" value="6" min="1" max="100" class="editable-input"
+            style="width: 100%; font-size: 1.1rem; font-weight: 700; text-align: center;">
         </div>
 
         <!-- Preview Info -->
-        <div id="dividePreviewInfo" style="margin-top: 12px; padding: 10px 14px; background: var(--primary-light); border-radius: 10px; font-size: 0.84rem; color: var(--primary); font-weight: 600; min-height: 40px;"></div>
+        <div id="dividePreviewInfo"
+          style="margin-top: 12px; padding: 10px 14px; background: var(--primary-light); border-radius: 10px; font-size: 0.84rem; color: var(--primary); font-weight: 600; min-height: 40px;">
+        </div>
       </div>
       <div class="modal-footer" style="padding-top: 16px; display: flex; gap: 10px; justify-content: flex-end;">
         <button class="btn btn-secondary" id="btnCancelAutoDivide">Batal</button>
-        <button class="btn btn-primary" id="btnConfirmAutoDivide"><i class="fa-solid fa-wand-magic-sparkles"></i> Bagi Sekarang</button>
+        <button class="btn btn-primary" id="btnConfirmAutoDivide"><i class="fa-solid fa-wand-magic-sparkles"></i> Bagi
+          Sekarang</button>
       </div>
     </div>
   </div>
