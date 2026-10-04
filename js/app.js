@@ -685,7 +685,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const totalScoreText = classification.maxPossible > 0 ? `${classification.totalScore}` : '-';
-      const finalScoreValue = classification.maxPossible > 0 ? Math.round((classification.totalScore / classification.maxPossible) * 100) : '-';
+      let finalScoreValue = classification.maxPossible > 0 ? Math.round((classification.totalScore / classification.maxPossible) * 100) : '-';
+      if (finalScoreValue !== '-' && finalScoreValue > 100) finalScoreValue = 100;
       const finalScoreText = finalScoreValue !== '-' ? `${finalScoreValue}` : '-';
 
       tdHtml += `<td style="text-align: center; font-weight: 800; font-size: 0.95rem;">${totalScoreText}</td>`;

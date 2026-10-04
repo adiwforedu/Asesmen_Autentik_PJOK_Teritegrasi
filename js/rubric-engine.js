@@ -79,29 +79,29 @@ const INITIAL_PRESETS = {
       {
         id: 'c1',
         category: 'Pemain',
-        name: 'Passing Bawah',
+        name: 'Posisi Pemain',
         descriptors: {
-          1: 'Sikap pergelangan tangan tidak dirapatkan, pantulan tidak terarah.',
-          2: 'Passing bawah cukup melambung namun arah bola kurang konsisten.',
-          3: 'Teknik passing bawah tepat, lutut mengeper, pantulan bola akurat.',
-          4: 'Kombinasi gerak sempurna, akurasi ke toser sangat stabil.'
+          1: 'Mempraktikan minimal 2 posisi pemain bola voli dengan sangat baik',
+          2: 'Mempraktikan minimal 3 posisi pemain bola voli dengan sangat baik',
+          3: 'Mempraktikan minimal 4 posisi pemain bola voli dengan sangat baik',
+          4: 'Mempraktikan minimal 5 posisi pemain bola voli dengan sangat baik'
         }
       },
       {
         id: 'c2',
         category: 'Pemain',
-        name: 'Passing Atas',
+        name: 'Passing',
         descriptors: {
-          1: 'Jari-jari kaku, bola mengenai telapak tangan secara salah.',
-          2: 'Passing atas cukup baik tetapi dorongan jari kurang bertenaga.',
-          3: 'Menerapkan dorongan jari-jari dengan akurasi dan parabola baik.',
-          4: 'Umpan bola atas sangat halus, presisi tinggi, dan mudah dismash.'
+          1: 'passing kurang baik, timing dan penempatan lemah, pantulan tidak terarah.-jari kaku, bola mengenai telapak tangan secara salah.',
+          2: 'Passing cukup baikmelambung namun arah bola kurang konsisten.',
+          3: 'Passing baik, lutut mengeper, pantulan bola akurat.',
+          4: 'Kombinasi gerak sempurna, akurasi ke toser/setter sangat stabil.'
         }
       },
       {
         id: 'c3',
         category: 'Pemain',
-        name: 'Servis Bawah / Atas',
+        name: 'Servis Bawah/Atas',
         descriptors: {
           1: 'Servis tidak menyeberangi net atau keluar lapangan.',
           2: 'Servis menyeberang net namun kecepatan dan arah bola mudah dibaca.',
@@ -118,6 +118,17 @@ const INITIAL_PRESETS = {
           2: 'Awalan cukup baik namun perkenaan bola dengan tangan tidak pas.',
           3: 'Lompatan dan timing pas, pukulan terarah melewati net.',
           4: 'Lompatan maksimal, timing sempurna, pukulan keras dan menukik tajam.'
+        }
+      },
+      {
+        id: 'c_1791086892544',
+        category: 'Pemain',
+        name: 'Menghargai lawan dan wasit',
+        descriptors: {
+          1: 'kurang menunjukan sikap sportif dan sering melakukan protes terhadap wasit',
+          2: 'kadang menghormati lawan/wasit namun belum konsisten',
+          3: 'selalu menunjukan sikap saling menghormati',
+          4: 'Menunjukkan sikap positif terhadap lawan, baik sebelum, selama, maupun setelah pertandingan dan menujukan kepatuhan terhadap keputusan wasit dengan sangat baik.'
         }
       },
       {
@@ -529,21 +540,29 @@ class RubricEngine {
     let maxPossible = 0;
     let scoredCriteriaCount = 0;
     let hasPerangkatScore = false;
+    let perangkatCriteriaCount = 0;
 
     criteriaList.forEach(c => {
       const val = scoresMap[c.id] || 0;
       if (val > 0) {
         totalScore += val;
-        maxPossible += 4;
         scoredCriteriaCount++;
         if (c.category === 'Perangkat Pertandingan') {
           hasPerangkatScore = true;
+          perangkatCriteriaCount++;
+        } else {
+          maxPossible += 4;
         }
       }
     });
 
     if (scoredCriteriaCount === 0) {
       return { label: 'Belum Dinilai', code: 'Unscored', badgeClass: 'badge-secondary', totalScore: 0, maxPossible: 0 };
+    }
+
+    // Jika siswa HANYA dinilai sebagai perangkat (tidak ada nilai pemain sama sekali)
+    if (maxPossible === 0 && hasPerangkatScore) {
+      maxPossible = perangkatCriteriaCount * 4;
     }
 
     const intervals = this.getIntervals(maxPossible);
